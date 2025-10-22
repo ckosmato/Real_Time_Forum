@@ -2,17 +2,19 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"real-time-forum/handlers"
 	"real-time-forum/repositories"
 	"real-time-forum/services"
+
+	_ "github.com/mattn/go-sqlite3" // Add this import
 )
 
-
 type Dependencies struct {
-	AuthService       services.AuthService
-	UserService       services.UserService
-	SessionService    services.SessionService
+	AuthService    services.AuthService
+	UserService    services.UserService
+	SessionService services.SessionService
 
 	PostService       services.PostService
 	CategoriesService services.CategoriesService
@@ -25,56 +27,79 @@ type Handlers struct {
 	PostHandler       *handlers.PostHandler
 	CategoriesHandler *handlers.CategoriesHandler
 	CommentsHandler   *handlers.CommentsHandler
-
 }
+
 func main() {
-	
+	// Initialize database
+	db, err := sql.Open("sqlite3", "./database/forum.db")
+	if err != nil {
+		panic(err)
+	}
+	defer db.Close()
+
+	// Setup dependencies and handlers
+	deps := SetupDependencies(db)
+	handlers := SetupHandlers(deps)
+
+	// Setup routes
+	mux := http.NewServeMux()
+	Configure(mux, handlers)
 
 	port := ":8080"
 	println("Server listening on", port)
-    println("Open http://localhost:8080 in your browser to view the game")
-	if err := http.ListenAndServe(port, nil); err != nil {
+	println("Open http://localhost:8080 in your browser to view the forum")
+	if err := http.ListenAndServe(port, mux); err != nil {
 		panic(err)
 	}
 }
 
-func Configure(mux *http.ServeMux,h *Handlers) {
+func Configure(mux *http.ServeMux, h *Handlers) {
+	// Add logging middleware
+	loggingHandler := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Printf("%s %s %s\n", r.Method, r.URL.Path, r.Proto)
+			next.ServeHTTP(w, r)
+		})
+	}
 
+	// API routes first (more specific patterns)
+	mux.Handle("/register", loggingHandler(http.HandlerFunc(h.AuthHandler.Register)))
+	mux.Handle("/login", loggingHandler(http.HandlerFunc(h.AuthHandler.Login)))
+	mux.Handle("/logout", loggingHandler(http.HandlerFunc(h.AuthHandler.LogOut)))
+	mux.Handle("/createpost", loggingHandler(http.HandlerFunc(h.PostHandler.CreatePost)))
+	mux.Handle("/post", loggingHandler(http.HandlerFunc(h.PostHandler.ViewPost)))
+	mux.Handle("/post/createcomment", loggingHandler(http.HandlerFunc(h.CommentsHandler.CreateComment)))
+	mux.Handle("/category/", loggingHandler(http.HandlerFunc(h.DashboardHandler.PostsByCategory)))
+	mux.Handle("/admin/createcategory", loggingHandler(http.HandlerFunc(h.CategoriesHandler.CreateCategory)))
 
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("internal/static"))))
-	mux.Handle("/favicon.ico", http.RedirectHandler("/static/favicon/favicon.ico", http.StatusMovedPermanently))
-	mux.Handle("/.well-known/", http.StripPrefix("/.well-known/", http.FileServer(http.Dir("static/.well-known/"))))
+	// Static files
+	mux.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "style.css")
+	})
+	mux.HandleFunc("/app.js", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "app.js")
+	})
 
-	//Dashboard Handler
-	mux.HandleFunc("/",h.DashboardHandler.Home)
-	mux.HandleFunc("/category/", h.DashboardHandler.PostsByCategory)
+	// Root handler
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("Root handler: %s %s\n", r.Method, r.URL.Path)
 
+		// If this is an AJAX request to the root for dashboard data
+		if r.URL.Path == "/" && (r.Header.Get("Accept") == "application/json" ||
+			r.Header.Get("Content-Type") == "application/json") {
+			h.DashboardHandler.Home(w, r)
+			return
+		}
 
-	// Auth Handler
-	mux.HandleFunc("/register" , h.AuthHandler.Register)
-	mux.HandleFunc("/login", h.AuthHandler.Login)
-	mux.HandleFunc("/logout", h.AuthHandler.LogOut)
-
-
-
-
-	// Post Handler
-	mux.HandleFunc("/createpost", h.PostHandler.CreatePost)
-
-	// Comments Handler
-	mux.HandleFunc("/post", h.PostHandler.ViewPost)
-	mux.HandleFunc("/post/createcomment", h.CommentsHandler.CreateComment)
-
-
-	// Categories Handler
-	mux.HandleFunc("/admin/createcategory", h.CategoriesHandler.CreateCategory)
-
+		// Serve SPA
+		http.ServeFile(w, r, "index.html")
+	})
 }
 
 func SetupDependencies(db *sql.DB) *Dependencies {
 	// Repositories
 	userRepo := repositories.NewUserRepository(db)
-	sessionRepo :=repositories.NewSessionRepository(db)
+	sessionRepo := repositories.NewSessionRepository(db)
 	postRepo := repositories.NewPostRepository(db)
 	categoriesRepo := repositories.NewCategoriesRepository(db)
 	commentRepo := repositories.NewCommentRepository(db)
@@ -88,10 +113,9 @@ func SetupDependencies(db *sql.DB) *Dependencies {
 	categoriesService := services.NewCategoriesService(*categoriesRepo)
 	commentService := services.NewCommentsService(*commentRepo)
 
-
 	return &Dependencies{
-		UserService:       *userService,
-		AuthService:       *authService,
+		UserService: *userService,
+		AuthService: *authService,
 
 		SessionService:    *sessionService,
 		PostService:       *postService,
@@ -100,7 +124,7 @@ func SetupDependencies(db *sql.DB) *Dependencies {
 	}
 }
 
-func SetupHandlers(deps *Dependencies,) *Handlers {
+func SetupHandlers(deps *Dependencies) *Handlers {
 	// Handlers
 	return &Handlers{
 		AuthHandler:       handlers.NewAuthHandler(deps.AuthService, deps.SessionService),
