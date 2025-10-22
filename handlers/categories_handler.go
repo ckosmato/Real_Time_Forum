@@ -26,18 +26,11 @@ func (h *CategoriesHandler) CreateCategory(w http.ResponseWriter, r *http.Reques
 
 	categoryName := r.FormValue("category_name")
 
-	redirectURL := r.Referer()
-	if redirectURL == "" {
-		redirectURL = "/admin/categories"
-	}
 	err := h.categoriesService.CreateCategory(r.Context(), categoryName)
 	if err != nil {
 		log.Printf("CreateCategory: failed to create category: %v", err)
 		// Set flash cookie if you have a flash cookie implementation
 		// utils.SetFlashCookie(w, "Failed to create Category: "+err.Error())
-		http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 		return
 	}
-
-	http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 }

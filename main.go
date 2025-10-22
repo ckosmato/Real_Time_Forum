@@ -10,7 +10,7 @@ import (
 
 
 type Dependencies struct {
-	//AuthService       services.AuthService
+	AuthService       services.AuthService
 	UserService       services.UserService
 	SessionService    services.SessionService
 
@@ -20,8 +20,7 @@ type Dependencies struct {
 }
 
 type Handlers struct {
-	//AuthHandler       *handlers.AuthHandler
-
+	AuthHandler       *handlers.AuthHandler
 	DashboardHandler  *handlers.DashboardHandler
 	PostHandler       *handlers.PostHandler
 	CategoriesHandler *handlers.CategoriesHandler
@@ -52,9 +51,9 @@ func Configure(mux *http.ServeMux,h *Handlers) {
 
 
 	// Auth Handler
-	// mux.HandleFunc("/register" , h.AuthHandler.Register)
-	// mux.HandleFunc("/login", h.AuthHandler.Login)
-	// mux.HandleFunc("/logout", h.AuthHandler.LogOut)
+	mux.HandleFunc("/register" , h.AuthHandler.Register)
+	mux.HandleFunc("/login", h.AuthHandler.Login)
+	mux.HandleFunc("/logout", h.AuthHandler.LogOut)
 
 
 
@@ -82,7 +81,7 @@ func SetupDependencies(db *sql.DB) *Dependencies {
 
 	// Services
 	userService := services.NewUserService(*userRepo)
-	//authService := services.NewAuthService(userRepo)
+	authService := services.NewAuthService(*userRepo)
 
 	sessionService := services.NewSessionService(*sessionRepo)
 	postService := services.NewPostService(*postRepo)
@@ -92,7 +91,7 @@ func SetupDependencies(db *sql.DB) *Dependencies {
 
 	return &Dependencies{
 		UserService:       *userService,
-		//AuthService:       *authService,
+		AuthService:       *authService,
 
 		SessionService:    *sessionService,
 		PostService:       *postService,
@@ -104,11 +103,10 @@ func SetupDependencies(db *sql.DB) *Dependencies {
 func SetupHandlers(deps *Dependencies,) *Handlers {
 	// Handlers
 	return &Handlers{
-		//AuthHandler:       handlers.NewAuthHandler(tm, "register.html", "login.html", deps.AuthService, deps.SessionService),
+		AuthHandler:       handlers.NewAuthHandler(deps.AuthService, deps.SessionService),
 		CategoriesHandler: handlers.NewCategoriesHandler(deps.CategoriesService),
 		CommentsHandler:   handlers.NewCommentsHandler(deps.PostService, deps.CommentService, deps.CategoriesService),
 		DashboardHandler:  handlers.NewDashboardHandler(deps.PostService, deps.CategoriesService),
-
 		PostHandler:       handlers.NewPostHandler(deps.PostService, deps.CategoriesService, deps.CommentService),
 	}
 }
