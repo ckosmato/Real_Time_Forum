@@ -1,11 +1,10 @@
-package sqlite
+package repositories
 
 import (
 	"context"
 	"database/sql"
-	
+
 	"real-time-forum/models"
-	
 )
 
 type UserRepository struct {

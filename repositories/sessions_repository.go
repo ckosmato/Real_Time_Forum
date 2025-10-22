@@ -1,11 +1,11 @@
-package sqlite
+package repositories
 
 import (
 	"context"
 	"database/sql"
 	"errors"
-	"real-time-forum/models"
 	"log"
+	"real-time-forum/models"
 	"time"
 )
 
