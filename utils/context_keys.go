@@ -9,7 +9,6 @@ type contextKey string
 
 const (
 	ContextUser contextKey = "user"
-	ContextRole contextKey = "role"
 )
 
 func GetUserFromContext(ctx context.Context) *models.User {
