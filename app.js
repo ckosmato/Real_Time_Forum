@@ -1,0 +1,598 @@
+class ForumApp {
+    constructor() {
+        this.currentUser = null;
+        this.currentView = 'home';
+        this.categories = [];
+        this.posts = [];
+        this.selectedPostId = null;
+        
+        this.init();
+    }
+
+    init() {
+        this.bindEvents();
+        this.checkAuthStatus();
+    }
+
+    bindEvents() {
+        // Auth events
+        document.getElementById('loginForm').addEventListener('submit', (e) => this.handleLogin(e));
+        document.getElementById('registerForm').addEventListener('submit', (e) => this.handleRegister(e));
+        document.getElementById('show-register').addEventListener('click', (e) => this.showRegister(e));
+        document.getElementById('show-login').addEventListener('click', (e) => this.showLogin(e));
+        document.getElementById('logout-btn').addEventListener('click', (e) => this.handleLogout(e));
+
+        // Navigation events
+        document.getElementById('home-btn').addEventListener('click', () => this.showView('home'));
+        document.getElementById('my-posts-btn').addEventListener('click', () => this.showView('my-posts'));
+        document.getElementById('create-post-btn').addEventListener('click', () => this.showView('create-post'));
+
+        // Post creation
+        document.getElementById('createPostForm').addEventListener('submit', (e) => this.handleCreatePost(e));
+    }
+
+    async checkAuthStatus() {
+        const sessionCookie = this.getCookie('session_id');
+        if (sessionCookie) {
+            await this.loadDashboard();
+        } else {
+            this.showAuth();
+        }
+    }
+
+    showAuth() {
+        document.getElementById('auth-container').style.display = 'flex';
+        document.getElementById('app-container').style.display = 'none';
+    }
+
+    showApp() {
+        document.getElementById('auth-container').style.display = 'none';
+        document.getElementById('app-container').style.display = 'block';
+    }
+
+    showRegister(e) {
+        e.preventDefault();
+        document.getElementById('login-form').style.display = 'none';
+        document.getElementById('register-form').style.display = 'block';
+    }
+
+    showLogin(e) {
+        e.preventDefault();
+        document.getElementById('login-form').style.display = 'block';
+        document.getElementById('register-form').style.display = 'none';
+    }
+
+    async handleLogin(e) {
+        e.preventDefault();
+        this.showLoading();
+
+        const username = document.getElementById('login-username').value;
+        const password = document.getElementById('login-password').value;
+
+        try {
+            const response = await fetch('/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    nickname: username,
+                    email: username,
+                    password: password
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                this.showToast('Login successful!', 'success');
+                await this.loadDashboard();
+            } else {
+                this.showToast(data.error || 'Login failed', 'error');
+            }
+        } catch (error) {
+            this.showToast('Network error. Please try again.', 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async handleRegister(e) {
+        e.preventDefault();
+        this.showLoading();
+
+        // Get the form element and create FormData directly from it
+        const form = document.getElementById('registerForm');
+        const formData = new FormData(form);
+
+        try {
+            const response = await fetch('/register', {
+                method: 'POST',
+                body: formData
+            });
+
+            let data;
+            const responseText = await response.text();
+            console.log(responseText);
+            
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('Failed to parse JSON:', responseText);
+                data = { error: 'Server returned invalid response: ' + responseText };
+            }
+
+            if (response.ok) {
+                this.showToast('Registration successful! Please log in.', 'success');
+                this.showLogin(e);
+                form.reset();
+            } else {
+                this.showToast(data.error || 'Registration failed', 'error');
+                console.error('Registration error:', data);
+            }
+        } catch (error) {
+            this.showToast('Network error. Please try again.', 'error');
+            console.error('Network error:', error);
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async handleLogin(e) {
+    e.preventDefault();
+    this.showLoading();
+
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
+
+    const formData = new FormData();
+    formData.append('nickname', username);
+    formData.append('email', username);
+    formData.append('password', password);
+
+    try {
+        const response = await fetch('/login', {
+            method: 'POST',
+            body: formData
+        });
+                let data;
+        const responseText = await response.text();
+        try {
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('Failed to parse JSON:', responseText);
+            data = { error: 'Server returned invalid response: ' + responseText };
+        }
+
+      
+
+        if (response.ok) {
+            this.showToast('Login successful!', 'success');
+            await this.loadDashboard();
+        } else {
+            this.showToast(data.error || 'Login failed', 'error');
+            console.error('Login error:', data);
+        }
+    } catch (error) {
+        this.showToast('Network error. Please try again.', 'error');
+        console.error('Network error:', error);
+    } finally {
+        this.hideLoading();
+    }
+}
+
+    async loadDashboard() {
+        this.showLoading();
+
+        try {
+            const response = await fetch('/');
+            const data = await response.json();
+
+            if (response.ok) {
+                this.currentUser = data.user;
+                this.categories = data.categories || [];
+                this.posts = data.posts || [];
+                
+                this.updateUserDisplay();
+                this.renderCategories();
+                this.renderPosts();
+                this.showApp();
+                this.showView('home');
+            } else {
+                this.showAuth();
+            }
+        } catch (error) {
+            this.showToast('Failed to load dashboard', 'error');
+            this.showAuth();
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    updateUserDisplay() {
+        if (this.currentUser) {
+            document.getElementById('username-display').textContent = this.currentUser.nickname;
+        }
+    }
+
+    renderCategories() {
+        const container = document.getElementById('categories-list');
+        container.innerHTML = '';
+
+        // All posts option
+        const allItem = document.createElement('div');
+        allItem.className = 'category-item active';
+        allItem.textContent = 'All Posts';
+        allItem.addEventListener('click', () => this.filterByCategory(null));
+        container.appendChild(allItem);
+
+        // Individual categories
+        this.categories.forEach(category => {
+            const item = document.createElement('div');
+            item.className = 'category-item';
+            item.textContent = category.name;
+            item.addEventListener('click', () => this.filterByCategory(category.id));
+            container.appendChild(item);
+        });
+
+        // Also populate categories for post creation
+        this.renderCategoriesForPost();
+    }
+
+    renderCategoriesForPost() {
+        const container = document.getElementById('post-categories');
+        container.innerHTML = '';
+
+        this.categories.forEach(category => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'category-checkbox';
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `category-${category.id}`;
+            checkbox.value = category.id;
+            
+            const label = document.createElement('label');
+            label.htmlFor = `category-${category.id}`;
+            label.textContent = category.name;
+            
+            wrapper.appendChild(checkbox);
+            wrapper.appendChild(label);
+            container.appendChild(wrapper);
+        });
+    }
+
+    async filterByCategory(categoryId) {
+        // Update active category
+        document.querySelectorAll('.category-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        event.target.classList.add('active');
+
+        this.showLoading();
+
+        try {
+            let url = '/';
+            if (categoryId) {
+                url = `/category/${categoryId}`;
+            }
+
+            const response = await fetch(url);
+            const data = await response.json();
+
+            if (response.ok) {
+                this.posts = data.posts || [];
+                this.renderPosts();
+            } else {
+                this.showToast('Failed to load posts', 'error');
+            }
+        } catch (error) {
+            this.showToast('Network error', 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    renderPosts() {
+        const container = document.getElementById('posts-container');
+        container.innerHTML = '';
+
+        if (this.posts.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #999;">No posts found.</p>';
+            return;
+        }
+
+        this.posts.forEach(post => {
+            const postCard = this.createPostCard(post);
+            container.appendChild(postCard);
+        });
+    }
+
+    createPostCard(post) {
+        const card = document.createElement('div');
+        card.className = 'post-card';
+        card.addEventListener('click', () => this.viewPost(post.id));
+
+        const categoriesHtml = post.categories ? 
+            post.categories.map(cat => `<span class="category-tag">${cat}</span>`).join('') : '';
+
+        card.innerHTML = `
+            <div class="post-header">
+                <h3 class="post-title">${this.escapeHtml(post.title)}</h3>
+                <div class="post-meta">
+                    <div>By: ${this.escapeHtml(post.authorName)}</div>
+                    <div>${this.formatDate(post.createdAt)}</div>
+                </div>
+            </div>
+            <div class="post-content">
+                ${this.escapeHtml(post.content.substring(0, 200))}${post.content.length > 200 ? '...' : ''}
+            </div>
+            <div class="post-categories">
+                ${categoriesHtml}
+            </div>
+        `;
+
+        return card;
+    }
+
+    async viewPost(postId) {
+        this.selectedPostId = postId;
+        this.showLoading();
+
+        try {
+            const response = await fetch(`/post?id=${postId}`);
+            const data = await response.json();
+
+            if (response.ok) {
+                this.renderPostDetail(data.post, data.comments || []);
+                this.showView('post');
+            } else {
+                this.showToast('Failed to load post', 'error');
+            }
+        } catch (error) {
+            this.showToast('Network error', 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    renderPostDetail(post, comments) {
+        const container = document.getElementById('post-detail');
+        
+        const categoriesHtml = post.categories ? 
+            post.categories.map(cat => `<span class="category-tag">${cat}</span>`).join('') : '';
+
+        const commentsHtml = comments.map(comment => `
+            <div class="comment">
+                <div class="comment-header">
+                    <span class="comment-author">${this.escapeHtml(comment.authorName)}</span>
+                    <span class="comment-date">${this.formatDate(comment.createdAt)}</span>
+                </div>
+                <div class="comment-content">${this.escapeHtml(comment.content)}</div>
+            </div>
+        `).join('');
+
+        container.innerHTML = `
+            <div class="post-header">
+                <h1 class="post-title">${this.escapeHtml(post.title)}</h1>
+                <div class="post-meta">
+                    <div>By: ${this.escapeHtml(post.authorName)}</div>
+                    <div>${this.formatDate(post.createdAt)}</div>
+                </div>
+            </div>
+            <div class="post-content" style="margin: 2rem 0;">
+                ${this.escapeHtml(post.content).replace(/\n/g, '<br>')}
+            </div>
+            <div class="post-categories">
+                ${categoriesHtml}
+            </div>
+            
+            <div class="comments-section">
+                <h3>Comments (${comments.length})</h3>
+                
+                ${this.currentUser ? `
+                    <form class="comment-form" onsubmit="app.handleCreateComment(event)">
+                        <textarea placeholder="Write your comment..." required></textarea>
+                        <button type="submit">Post Comment</button>
+                    </form>
+                ` : '<p style="color: #999;">Please log in to comment.</p>'}
+                
+                <div class="comments-list">
+                    ${commentsHtml || '<p style="color: #999;">No comments yet.</p>'}
+                </div>
+            </div>
+        `;
+    }
+
+    async handleCreateComment(e) {
+        e.preventDefault();
+        
+        const textarea = e.target.querySelector('textarea');
+        const content = textarea.value.trim();
+        
+        if (!content) return;
+
+        this.showLoading();
+
+        try {
+            const formData = new FormData();
+            formData.append('comment', content);
+            formData.append('post_id', this.selectedPostId);
+
+            const response = await fetch('/post/createcomment', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                this.showToast('Comment posted successfully!', 'success');
+                textarea.value = '';
+                // Reload post to show new comment
+                await this.viewPost(this.selectedPostId);
+            } else {
+                this.showToast(data.error || 'Failed to post comment', 'error');
+            }
+        } catch (error) {
+            this.showToast('Network error', 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async handleCreatePost(e) {
+        e.preventDefault();
+        this.showLoading();
+
+        const title = document.getElementById('post-title').value;
+        const content = document.getElementById('post-content').value;
+        const selectedCategories = Array.from(document.querySelectorAll('#post-categories input:checked'))
+            .map(cb => cb.value);
+
+        if (selectedCategories.length === 0) {
+            this.showToast('Please select at least one category', 'error');
+            this.hideLoading();
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('content', content);
+            selectedCategories.forEach(categoryId => {
+                formData.append('categories', categoryId);
+            });
+
+            const response = await fetch('/createpost', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                this.showToast('Post created successfully!', 'success');
+                document.getElementById('createPostForm').reset();
+                await this.loadDashboard(); // Refresh dashboard
+                this.showView('home');
+            } else {
+                this.showToast(data.error || 'Failed to create post', 'error');
+            }
+        } catch (error) {
+            this.showToast('Network error', 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    async loadMyPosts() {
+        if (!this.currentUser) return;
+        
+        this.showLoading();
+
+        try {
+            // This would need a new endpoint in your backend
+            const response = await fetch(`/user/${this.currentUser.id}/posts`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                const container = document.getElementById('my-posts-container');
+                container.innerHTML = '';
+                
+                if (data.posts && data.posts.length > 0) {
+                    data.posts.forEach(post => {
+                        const postCard = this.createPostCard(post);
+                        container.appendChild(postCard);
+                    });
+                } else {
+                    container.innerHTML = '<p style="text-align: center; color: #999;">You haven\'t created any posts yet.</p>';
+                }
+            } else {
+                this.showToast('Failed to load your posts', 'error');
+            }
+        } catch (error) {
+            this.showToast('Network error', 'error');
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    showView(viewName) {
+        // Hide all views
+        document.querySelectorAll('.view').forEach(view => {
+            view.style.display = 'none';
+        });
+
+        // Remove active class from nav buttons
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // Show selected view
+        document.getElementById(`${viewName}-view`).style.display = 'block';
+        
+        // Add active class to corresponding nav button
+        if (viewName !== 'post') {
+            document.getElementById(`${viewName}-btn`).classList.add('active');
+        }
+
+        this.currentView = viewName;
+
+        // Load data based on view
+        if (viewName === 'my-posts') {
+            this.loadMyPosts();
+        } else if (viewName === 'create-post' && this.categories.length === 0) {
+            this.renderCategoriesForPost();
+        }
+    }
+
+    showLoading() {
+        document.getElementById('loading').style.display = 'flex';
+    }
+
+    hideLoading() {
+        document.getElementById('loading').style.display = 'none';
+    }
+
+    showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = message;
+
+        document.getElementById('toast-container').appendChild(toast);
+
+        setTimeout(() => {
+            toast.remove();
+        }, 4000);
+    }
+
+    getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+    }
+
+    escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    }
+}
+
+// Initialize the app
+const app = new ForumApp();
+
+// Make handleCreateComment available globally for the onclick handler
+window.app = app;

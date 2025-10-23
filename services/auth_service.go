@@ -21,7 +21,7 @@ func NewAuthService(repo repositories.UserRepository) *AuthService {
 	return &AuthService{repo: repo}
 }
 
-func (s *AuthService) RegisterUser(ctx context.Context, user *models.User) error {
+func (s *AuthService) Register(ctx context.Context, user *models.User) error {
 	err := validateUser(user, true)
 	if err != nil {
 		log.Printf("RegisterUser: validation error: %v", err)
