@@ -19,11 +19,10 @@ func NewSessionRepository(db *sql.DB) *SessionRepository {
 
 func (r *SessionRepository) CreateSession(ctx context.Context, session models.Session) error {
 	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO sessions (user_id, session_id, csrf_token, created_at, expires_at)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO sessions (user_id, session_id, created_at, expires_at)
+		VALUES (?, ?, ?, ?)
 		ON CONFLICT(user_id) DO UPDATE SET
 			session_id = excluded.session_id,
-			csrf_token = excluded.csrf_token,
 			created_at = excluded.created_at,
 			expires_at = excluded.expires_at
 	`, session.UserID, session.ID, session.CreatedAt, session.ExpiresAt)
@@ -33,7 +32,7 @@ func (r *SessionRepository) CreateSession(ctx context.Context, session models.Se
 
 func (r *SessionRepository) GetSessionByID(ctx context.Context, sessionID string) (*models.Session, error) {
 	s := models.Session{}
-	err := r.db.QueryRowContext(ctx, "SELECT session_id,csrf_token , user_id, created_at, expires_at FROM sessions WHERE session_id = ?", sessionID).Scan(&s.ID,  &s.UserID, &s.CreatedAt, &s.ExpiresAt)
+	err := r.db.QueryRowContext(ctx, "SELECT session_id, user_id, created_at, expires_at FROM sessions WHERE session_id = ?", sessionID).Scan(&s.ID, &s.UserID, &s.CreatedAt, &s.ExpiresAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, errors.New("user not found")

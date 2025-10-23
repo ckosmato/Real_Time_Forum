@@ -170,14 +170,34 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		var input models.User
-		if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-			http.Error(w, "Invalid JSON body", http.StatusBadRequest)
-			return
-		}
+		contentType := r.Header.Get("Content-Type")
+		if strings.Contains(contentType, "application/json") {
+			// JSON body
+			if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+				http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+				return
+			}
+		} else {
+			// Try form values (supports application/x-www-form-urlencoded and multipart/form-data)
+			if strings.Contains(contentType, "multipart/form-data") {
+				if err := r.ParseMultipartForm(32 << 20); err != nil {
+					http.Error(w, "Invalid multipart form data", http.StatusBadRequest)
+					return
+				}
+			} else {
+				if err := r.ParseForm(); err != nil {
+					http.Error(w, "Invalid form data", http.StatusBadRequest)
+					return
+				}
+			}
+			input.Nickname = strings.TrimSpace(r.FormValue("nickname"))
+			input.Email = strings.TrimSpace(r.FormValue("email"))
+			input.Password = r.FormValue("password")
 
-		if strings.Contains(input.Nickname, "@") {
-			input.Email = input.Nickname
-			input.Nickname = ""
+			if strings.Contains(input.Nickname, "@") {
+				input.Email = input.Nickname
+				input.Nickname = ""
+			}
 		}
 
 		user, err := h.authService.LoginUser(r.Context(), &input)

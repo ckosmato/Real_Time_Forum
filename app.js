@@ -140,49 +140,6 @@ class ForumApp {
         }
     }
 
-    async handleLogin(e) {
-    e.preventDefault();
-    this.showLoading();
-
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
-
-    const formData = new FormData();
-    formData.append('nickname', username);
-    formData.append('email', username);
-    formData.append('password', password);
-
-    try {
-        const response = await fetch('/login', {
-            method: 'POST',
-            body: formData
-        });
-                let data;
-        const responseText = await response.text();
-        try {
-            data = JSON.parse(responseText);
-        } catch (parseError) {
-            console.error('Failed to parse JSON:', responseText);
-            data = { error: 'Server returned invalid response: ' + responseText };
-        }
-
-      
-
-        if (response.ok) {
-            this.showToast('Login successful!', 'success');
-            await this.loadDashboard();
-        } else {
-            this.showToast(data.error || 'Login failed', 'error');
-            console.error('Login error:', data);
-        }
-    } catch (error) {
-        this.showToast('Network error. Please try again.', 'error');
-        console.error('Network error:', error);
-    } finally {
-        this.hideLoading();
-    }
-}
-
     async loadDashboard() {
         this.showLoading();
 
