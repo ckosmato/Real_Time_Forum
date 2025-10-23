@@ -35,16 +35,31 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	var user models.User
 
-	// Handle form data request
-	if err := r.ParseForm(); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid form data"})
-		return
+	// Handle form data request. Support both urlencoded and multipart (FormData) bodies.
+	contentType := r.Header.Get("Content-Type")
+	if strings.Contains(contentType, "multipart/form-data") {
+		// Allow up to 32MB in memory before spooling to disk
+		if err := r.ParseMultipartForm(32 << 20); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid multipart form data"})
+			return
+		}
+	} else {
+		if err := r.ParseForm(); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid form data"})
+			return
+		}
 	}
 
 	// Convert form values to user struct
-	ageStr := r.FormValue("age")
-	print(ageStr)
+	ageStr := strings.TrimSpace(r.FormValue("age"))
+	if ageStr == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Age is required"})
+		return
+	}
+
 	age, err := strconv.Atoi(ageStr)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)

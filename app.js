@@ -103,7 +103,9 @@ class ForumApp {
 
         // Get the form element and create FormData directly from it
         const form = document.getElementById('registerForm');
+
         const formData = new FormData(form);
+        console.log('Registering user with form data:', formData);
 
         try {
             const response = await fetch('/register', {
