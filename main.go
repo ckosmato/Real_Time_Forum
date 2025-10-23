@@ -7,6 +7,7 @@ import (
 	"real-time-forum/handlers"
 	"real-time-forum/repositories"
 	"real-time-forum/services"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3" // Add this import
 )
@@ -66,6 +67,7 @@ func Configure(mux *http.ServeMux, h *Handlers) {
 	mux.Handle("/register", loggingHandler(http.HandlerFunc(h.AuthHandler.Register)))
 	mux.Handle("/login", loggingHandler(http.HandlerFunc(h.AuthHandler.Login)))
 	mux.Handle("/logout", loggingHandler(http.HandlerFunc(h.AuthHandler.LogOut)))
+	mux.Handle("/dashboard", loggingHandler(http.HandlerFunc(h.DashboardHandler.Home)))
 	mux.Handle("/createpost", loggingHandler(http.HandlerFunc(h.PostHandler.CreatePost)))
 	mux.Handle("/post", loggingHandler(http.HandlerFunc(h.PostHandler.ViewPost)))
 	mux.Handle("/post/createcomment", loggingHandler(http.HandlerFunc(h.CommentsHandler.CreateComment)))
@@ -82,16 +84,18 @@ func Configure(mux *http.ServeMux, h *Handlers) {
 
 	// Root handler
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("Root handler: %s %s\n", r.Method, r.URL.Path)
+		fmt.Printf("Root handler: %s %s %s\n", r.Method, r.URL.Path, r.Header.Get("Accept"))
 
-		// If this is an AJAX request to the root for dashboard data
-		if r.URL.Path == "/" && (r.Header.Get("Accept") == "application/json" ||
-			r.Header.Get("Content-Type") == "application/json") {
+		// If this is a request for JSON data (either through Accept header or query param)
+		wantsJSON := strings.Contains(r.Header.Get("Accept"), "application/json") ||
+			r.URL.Query().Get("format") == "json"
+
+		if r.URL.Path == "/" && wantsJSON {
 			h.DashboardHandler.Home(w, r)
 			return
 		}
 
-		// Serve SPA
+		// Serve SPA for HTML requests or when no specific format is requested
 		http.ServeFile(w, r, "index.html")
 	})
 }

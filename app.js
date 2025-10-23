@@ -72,6 +72,7 @@ class ForumApp {
         try {
             const response = await fetch('/login', {
                 method: 'POST',
+                credentials: 'same-origin',
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -82,13 +83,25 @@ class ForumApp {
                 })
             });
 
-            const data = await response.json();
+            let data;
+            const responseText = await response.text();
+            try {
+                data = JSON.parse(responseText);
+            } catch (parseError) {
+                data = { error: responseText };
+            }
 
             if (response.ok) {
+                // Store the user info from login response
+                this.currentUser = {
+                    nickname: data.user
+                };
+                
                 this.showToast('Login successful!', 'success');
                 await this.loadDashboard();
             } else {
                 this.showToast(data.error || 'Login failed', 'error');
+                console.error('Login error:', data);
             }
         } catch (error) {
             this.showToast('Network error. Please try again.', 'error');
@@ -144,25 +157,36 @@ class ForumApp {
         this.showLoading();
 
         try {
-            const response = await fetch('/');
+            // Show the dashboard UI immediately after successful login
+            this.showApp();
+            this.showView('home');
+            
+            // Update the user display with the nickname we got from login
+            if (this.currentUser) {
+                this.updateUserDisplay();
+            }
+
+            // Now fetch posts and categories
+            const response = await fetch('/category/', {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+            
             const data = await response.json();
 
             if (response.ok) {
-                this.currentUser = data.user;
                 this.categories = data.categories || [];
                 this.posts = data.posts || [];
                 
-                this.updateUserDisplay();
                 this.renderCategories();
                 this.renderPosts();
-                this.showApp();
-                this.showView('home');
             } else {
-                this.showAuth();
+                console.error('Failed to load posts:', data.error);
+                this.showToast('Failed to load posts. Please refresh the page.', 'error');
             }
         } catch (error) {
-            this.showToast('Failed to load dashboard', 'error');
-            this.showAuth();
+            console.error('Dashboard error:', error);
+            this.showToast('Failed to load content. Please refresh the page.', 'error');
         } finally {
             this.hideLoading();
         }
@@ -231,12 +255,12 @@ class ForumApp {
         this.showLoading();
 
         try {
-            let url = '/';
+            let url = '/dashboard';
             if (categoryId) {
                 url = `/category/${categoryId}`;
             }
 
-            const response = await fetch(url);
+            const response = await fetch(url, { credentials: 'same-origin' });
             const data = await response.json();
 
             if (response.ok) {
@@ -299,7 +323,7 @@ class ForumApp {
         this.showLoading();
 
         try {
-            const response = await fetch(`/post?id=${postId}`);
+            const response = await fetch(`/post?id=${postId}`, { credentials: 'same-origin' });
             const data = await response.json();
 
             if (response.ok) {
@@ -380,6 +404,7 @@ class ForumApp {
 
             const response = await fetch('/post/createcomment', {
                 method: 'POST',
+                credentials: 'same-origin',
                 body: formData
             });
 
@@ -425,6 +450,7 @@ class ForumApp {
 
             const response = await fetch('/createpost', {
                 method: 'POST',
+                credentials: 'same-origin',
                 body: formData
             });
 
@@ -452,7 +478,7 @@ class ForumApp {
 
         try {
             // This would need a new endpoint in your backend
-            const response = await fetch(`/user/${this.currentUser.id}/posts`);
+            const response = await fetch(`/user/${this.currentUser.id}/posts`, { credentials: 'same-origin' });
             
             if (response.ok) {
                 const data = await response.json();

@@ -174,19 +174,25 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(contentType, "application/json") {
 			// JSON body
 			if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-				http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON body"})
 				return
 			}
 		} else {
 			// Try form values (supports application/x-www-form-urlencoded and multipart/form-data)
 			if strings.Contains(contentType, "multipart/form-data") {
 				if err := r.ParseMultipartForm(32 << 20); err != nil {
-					http.Error(w, "Invalid multipart form data", http.StatusBadRequest)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(map[string]string{"error": "Invalid multipart form data"})
 					return
 				}
 			} else {
 				if err := r.ParseForm(); err != nil {
-					http.Error(w, "Invalid form data", http.StatusBadRequest)
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(map[string]string{"error": "Invalid form data"})
 					return
 				}
 			}
@@ -202,13 +208,17 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 		user, err := h.authService.LoginUser(r.Context(), &input)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 			return
 		}
 
 		session, err := h.sessionService.GenerateSession(r.Context(), user)
 		if err != nil {
-			http.Error(w, "Failed to create session", http.StatusInternalServerError)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to create session"})
 			return
 		}
 
@@ -230,7 +240,9 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		})
 
 	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Method not allowed"})
 	}
 }
 
