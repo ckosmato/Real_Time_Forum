@@ -222,13 +222,16 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Set cookies
+		// Set cookies with more permissive settings for development
 		http.SetCookie(w, &http.Cookie{
 			Name:     "session_id",
 			Value:    session.ID,
 			Path:     "/",
-			HttpOnly: true,
-			Secure:   false, // change to true if using HTTPS
+			HttpOnly: false, // Allow JavaScript access for development
+			Secure:   false, // Allow HTTP for development
+			SameSite: http.SameSiteLaxMode,
+			Domain:   "", // Browser will automatically set to current domain
+			MaxAge:   3600, // 1 hour
 		})
 
 		w.Header().Set("Content-Type", "application/json")
