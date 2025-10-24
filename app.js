@@ -222,32 +222,9 @@ class ForumApp {
             container.appendChild(item);
         });
 
-        // Also populate categories for post creation
-        this.renderCategoriesForPost();
+        // Categories for post creation are handled by static HTML
     }
 
-    renderCategoriesForPost() {
-        const container = document.getElementById('post-categories');
-        container.innerHTML = '';
-
-        this.categories.forEach(category => {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'category-checkbox';
-            
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.id = `category-${category.id}`;
-            checkbox.value = category.id;
-            
-            const label = document.createElement('label');
-            label.htmlFor = `category-${category.id}`;
-            label.textContent = category.name;
-            
-            wrapper.appendChild(checkbox);
-            wrapper.appendChild(label);
-            container.appendChild(wrapper);
-        });
-    }
 
     async filterByCategory(categoryId) {
         // Update active category
@@ -531,9 +508,8 @@ class ForumApp {
         // Load data based on view
         if (viewName === 'my-posts') {
             this.loadMyPosts();
-        } else if (viewName === 'create-post' && this.categories.length === 0) {
-            this.renderCategoriesForPost();
         }
+        // Categories for create-post are handled by static HTML - no need to render
     }
 
     showLoading() {
