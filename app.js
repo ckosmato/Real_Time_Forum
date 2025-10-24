@@ -32,8 +32,10 @@ class ForumApp {
     }
 
     async checkAuthStatus() {
+       
         const sessionCookie = this.getCookie('session_id');
-        if (sessionCookie) {
+       
+        if (sessionCookie) {     
             await this.loadDashboard();
         } else {
             this.showAuth();
@@ -72,7 +74,7 @@ class ForumApp {
         try {
             const response = await fetch('/login', {
                 method: 'POST',
-                credentials: 'same-origin',
+                credentials: 'include', // Changed from 'same-origin' to 'include' to ensure cookies are sent/received
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -88,6 +90,7 @@ class ForumApp {
             try {
                 data = JSON.parse(responseText);
             } catch (parseError) {
+                console.error("Failed to parse login response:", parseError);
                 data = { error: responseText };
             }
 
@@ -97,8 +100,10 @@ class ForumApp {
                     nickname: data.user
                 };
                 
+
+                await this.checkAuthStatus();
                 this.showToast('Login successful!', 'success');
-                await this.loadDashboard();
+                
             } else {
                 this.showToast(data.error || 'Login failed', 'error');
                 console.error('Login error:', data);
@@ -118,7 +123,7 @@ class ForumApp {
         const form = document.getElementById('registerForm');
 
         const formData = new FormData(form);
-        console.log('Registering user with form data:', formData);
+
 
         try {
             const response = await fetch('/register', {
@@ -128,7 +133,6 @@ class ForumApp {
 
             let data;
             const responseText = await response.text();
-            console.log(responseText);
             
             try {
                 data = JSON.parse(responseText);
@@ -555,7 +559,10 @@ class ForumApp {
     getCookie(name) {
         const value = `; ${document.cookie}`;
         const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
+        if (parts.length === 2) {
+            const cookieValue = parts.pop().split(';').shift();
+            return cookieValue;
+        }
         return null;
     }
 
