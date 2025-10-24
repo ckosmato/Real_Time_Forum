@@ -274,25 +274,31 @@ class ForumApp {
 
     renderCategories() {
         const container = document.getElementById('categories-list');
-        container.innerHTML = '';
+        
+        // Don't clear the container - keep the hardcoded categories
+        // container.innerHTML = '';
 
-        // All posts option
-        const allItem = document.createElement('div');
-        allItem.className = 'category-item active';
-        allItem.textContent = 'All Posts';
-        allItem.addEventListener('click', () => this.filterByCategory(null));
-        container.appendChild(allItem);
-
-        // Individual categories
-        this.categories.forEach(category => {
-            const item = document.createElement('div');
-            item.className = 'category-item';
-            item.textContent = category.name;
-            item.addEventListener('click', () => this.filterByCategory(category.id));
-            container.appendChild(item);
+        // Just add click handlers to existing categories
+        const categoryItems = container.querySelectorAll('.category-item');
+        categoryItems.forEach((item, index) => {
+            // Remove existing click listeners to avoid duplicates
+            item.replaceWith(item.cloneNode(true));
         });
 
-        // Categories for post creation are handled by static HTML
+        // Re-select after cloning (to get fresh elements without old listeners)
+        const updatedCategoryItems = container.querySelectorAll('.category-item');
+        updatedCategoryItems.forEach((item, index) => {
+            if (index === 0) {
+                // First item is "All Posts"
+                item.addEventListener('click', () => this.filterByCategory(null));
+            } else {
+                // For hardcoded categories, use index as category ID
+                item.addEventListener('click', () => this.filterByCategory(index));
+            }
+        });
+
+        // If we have categories from backend, we could append them here
+        // but for now, just use the hardcoded ones
     }
 
 
