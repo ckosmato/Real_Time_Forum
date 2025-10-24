@@ -255,13 +255,10 @@ func (h *AuthHandler) LogOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie, err := r.Cookie("session_id")
-	if err == nil {
-		sessionID := cookie.Value
-		if err := h.sessionService.ExpireSession(r.Context(), sessionID); err != nil {
-			http.Error(w, "Failed to log out", http.StatusInternalServerError)
-			return
-		}
+	sessionID := r.Header.Get("X-Session-ID")
+	if sessionID == "" {
+		http.Error(w, "Session ID is required", http.StatusBadRequest)
+		return
 	}
 
 	// Expire session cookie
@@ -271,7 +268,11 @@ func (h *AuthHandler) LogOut(w http.ResponseWriter, r *http.Request) {
 		Path:   "/",
 		MaxAge: -1,
 	})
-
+	err := h.sessionService.ExpireSession(r.Context(), sessionID)
+	if err != nil {
+		http.Error(w, "Failed to log out", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Logout successful"})

@@ -157,6 +157,55 @@ class ForumApp {
         }
     }
 
+    async handleLogout(e) {
+        e.preventDefault();
+        this.showLoading();
+
+        const sessionId = this.getCookie('session_id');
+
+        try {
+            const response = await fetch('/logout', {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'X-Session-ID': sessionId
+                }
+            });
+
+            if (response.ok) {
+                // Clear all state
+                this.currentUser = null;
+                this.categories = [];
+                this.posts = [];
+                this.selectedPostId = null;
+                
+                // Clear any displayed content
+                document.getElementById('posts-container').innerHTML = '';
+                document.getElementById('categories-list').innerHTML = '';
+                document.getElementById('my-posts-container').innerHTML = '';
+                
+                // Reset username display
+                document.getElementById('username-display').textContent = '';
+                
+                // Show auth container and ensure login form is visible
+                this.showAuth();
+                document.getElementById('login-form').style.display = 'block';
+                document.getElementById('register-form').style.display = 'none';
+                
+                this.showToast('Logout successful!', 'success');
+            } else {
+                const data = await response.json();
+                this.showToast(data.error || 'Logout failed', 'error');
+                console.error('Logout error:', data);
+            }
+        } catch (error) {
+            this.showToast('Network error. Please try again.', 'error');
+            console.error('Network error:', error);
+        } finally {
+            this.hideLoading();
+        }
+    }
+
     async loadDashboard() {
 
         this.showLoading();
