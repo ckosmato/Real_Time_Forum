@@ -19,13 +19,13 @@ func NewSessionRepository(db *sql.DB) *SessionRepository {
 
 func (r *SessionRepository) CreateSession(ctx context.Context, session models.Session) error {
 	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO sessions (user_id, session_id, created_at, expires_at)
+		INSERT INTO sessions (session_id, user_id, created_at, expires_at)
 		VALUES (?, ?, ?, ?)
-		ON CONFLICT(user_id) DO UPDATE SET
-			session_id = excluded.session_id,
+		ON CONFLICT(session_id) DO UPDATE SET
+			user_id = excluded.user_id,
 			created_at = excluded.created_at,
 			expires_at = excluded.expires_at
-	`, session.UserID, session.ID, session.CreatedAt, session.ExpiresAt)
+	`, session.ID, session.UserID, session.CreatedAt, session.ExpiresAt)
 
 	return err
 }

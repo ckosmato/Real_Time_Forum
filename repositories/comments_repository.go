@@ -29,7 +29,7 @@ func (r *CommentRepository) CreateComment(ctx context.Context, comment *models.C
 
 func (r *CommentRepository) GetCommentByID(ctx context.Context, commentID string) (*models.Comment, error) {
 	var comment models.Comment
-	query := "SELECT id, post_id, author_id, content, created_at, updated_at FROM comments WHERE id = ? AND is_deleted = 0"
+	query := "SELECT id, post_id, author_id, content, created_at, updated_at FROM comments WHERE id = ?"
 	err := r.db.QueryRowContext(ctx, query, commentID).Scan(&comment.ID, &comment.PostID, &comment.AuthorID, &comment.Content, &comment.CreatedAt, &comment.UpdatedAt)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func (r *CommentRepository) GetPostComments(ctx context.Context, postID string) 
 		SELECT c.id, u.username, c.content, c.created_at, c.likes_count, c.dislikes_count
 		FROM comments c
 		JOIN users u ON c.author_id = u.id
-		WHERE c.post_id = ? AND is_deleted = 0
+		WHERE c.post_id = ?
 		ORDER BY created_at DESC;
 	`, postID)
 	if err != nil {
@@ -82,7 +82,7 @@ func (r *CommentRepository) CommentsListByUser(ctx context.Context, userID strin
         SELECT c.id, c.post_id, p.title, c.content, c.created_at
         FROM comments c
         JOIN posts p ON p.id = c.post_id
-        WHERE c.author_id = $1 AND c.is_deleted = 0
+        WHERE c.author_id = $1
         ORDER BY c.created_at DESC
         LIMIT $2 OFFSET $3;
     `

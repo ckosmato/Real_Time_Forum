@@ -49,9 +49,9 @@ func (r *UserRepository) GetUserByEmailorName(ctx context.Context, email, name s
 	return &user, nil
 }
 
-func (r *UserRepository) GetUserByID(ctx context.Context, userID string) (*models.User, error) {
+func (r *UserRepository) GetUserBySessionID(ctx context.Context, SessionID string) (*models.User, error) {
 	user := models.User{}
-	err := r.db.QueryRowContext(ctx, `SELECT id,tag, nickname, email FROM users WHERE id = ?`, userID).Scan(&user.ID, &user.Nickname, &user.Email)
+	err := r.db.QueryRowContext(ctx, `SELECT u.nickname, u.email FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.session_id = ?`, SessionID).Scan(&user.Nickname, &user.Email)
 	if err != nil {
 
 		return nil, err // return the raw DB error
@@ -60,7 +60,7 @@ func (r *UserRepository) GetUserByID(ctx context.Context, userID string) (*model
 }
 
 func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT id,tag, username FROM users")
+	rows, err := r.db.QueryContext(ctx, "SELECT id, nickname, email FROM users")
 	if err != nil {
 		return nil, err
 	}

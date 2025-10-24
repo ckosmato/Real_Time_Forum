@@ -47,7 +47,7 @@ func (s *CategoriesService) CreateCategory(ctx context.Context, categoryName str
 func (s *CategoriesService) GetAllCategories(ctx context.Context) ([]models.Category, error) {
 	categories, err := s.repo.GetAllCategories(ctx)
 	if err != nil {
-		log.Printf("GetAllCategories: failed to retrieve categories: %v", err)
+		log.Printf("GetAllCategories: failed to retrieve categories AYTO EDW PERNOYME: %v", err)
 		return nil, errors.New("failed to retrieve categories")
 	}
 	return categories, nil

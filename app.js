@@ -158,27 +158,40 @@ class ForumApp {
     }
 
     async loadDashboard() {
+
         this.showLoading();
+        //get session id from cookie
+        const sessionId = this.getCookie('session_id');
+
 
         try {
             // Show the dashboard UI immediately after successful login
             this.showApp();
             this.showView('home');
-            
-            // Update the user display with the nickname we got from login
-            if (this.currentUser) {
-                this.updateUserDisplay();
-            }
 
-            // Now fetch posts and categories
-            const response = await fetch('/category/', {
+            // Now fetch posts and categories and send session id in headers
+            console.log('Fetching dashboard data...');
+            const response = await fetch('/dashboard', {
                 method: 'GET',
-                credentials: 'same-origin'
+                credentials: 'include', // Changed to 'include' for consistency
+                headers: {
+                    'X-Session-ID': sessionId
+                }
             });
+            console.log('Dashboard response status:', response.status);
             
             const data = await response.json();
-
             if (response.ok) {
+                // Update user information from the server response
+                if (data.user) {
+                    this.currentUser = {
+                        nickname: data.user.Nickname,
+                    };
+                    this.updateUserDisplay();
+                } else {
+                    console.error('No user data in dashboard response');
+                }
+
                 this.categories = data.categories || [];
                 this.posts = data.posts || [];
                 
@@ -198,7 +211,10 @@ class ForumApp {
 
     updateUserDisplay() {
         if (this.currentUser) {
-            document.getElementById('username-display').textContent = this.currentUser.nickname;
+            const usernameElement = document.getElementById('username-display');
+            if (usernameElement) {
+                usernameElement.textContent = this.currentUser.nickname;
+            }
         }
     }
 

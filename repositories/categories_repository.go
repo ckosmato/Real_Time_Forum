@@ -25,7 +25,7 @@ func (c *CategoriesRepository) CreateCategory(ctx context.Context, category mode
 
 
 func (p *CategoriesRepository) GetAllCategories(ctx context.Context) ([]models.Category, error) {
-	rows, err := p.db.QueryContext(ctx, "SELECT id, name, is_deleted FROM categories")
+	rows, err := p.db.QueryContext(ctx, "SELECT id, name FROM categories")
 	if err != nil {
 		return nil, err
 	}

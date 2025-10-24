@@ -73,21 +73,10 @@ func (r *PostRepository) GetAllPosts(ctx context.Context) ([]models.Post, error)
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT
 		p.id,
-		u.username,
 		p.title,
 		p.content,
-		p.created_at,
-		p.likes_count,
-		p.dislikes_count,
-		p.image_name,
-		GROUP_CONCAT(c.name, ',')
+		p.created_at
 		FROM posts p
-		JOIN users u ON p.author_id = u.id
-		LEFT JOIN post_categories pc ON p.id = pc.post_id
-		LEFT JOIN categories c     ON pc.category_id = c.id
-		WHERE p.is_deleted = 0
-		GROUP BY p.id
-		ORDER BY p.created_at DESC;
 	`)
 	if err != nil {
 		return nil, err
@@ -141,7 +130,7 @@ func (r *PostRepository) GetPostByID(ctx context.Context, postID string) (*model
 		JOIN users u ON p.author_id = u.id
 		LEFT JOIN post_categories pc ON p.id = pc.post_id
 		LEFT JOIN categories c     ON pc.category_id = c.id
-		WHERE p.id = ? AND p.is_deleted = 0
+		WHERE p.id = ?
 		GROUP BY p.id
 	`, postID)
 
@@ -186,7 +175,7 @@ func (r *PostRepository) GetPostsByCategory(ctx context.Context, categoryID stri
 		JOIN users u ON p.author_id = u.id
 		JOIN post_categories pc ON p.id = pc.post_id
 		LEFT JOIN categories c ON pc.category_id = c.id
-		WHERE pc.category_id = ? AND p.is_deleted = 0
+		WHERE pc.category_id = ?
 		GROUP BY p.id
 		ORDER BY p.created_at DESC;
 	`, categoryID)
@@ -244,7 +233,7 @@ func (r *PostRepository) GetUserPosts(ctx context.Context, userID string) ([]mod
 		JOIN users u ON p.author_id = u.id
 		JOIN post_categories pc ON p.id = pc.post_id
 		LEFT JOIN categories c ON pc.category_id = c.id
-		WHERE p.author_id = ? AND p.is_deleted = 0
+		WHERE p.author_id = ?
 		GROUP BY p.id
 		ORDER BY p.created_at DESC;
 	`, userID)
@@ -288,7 +277,7 @@ func (r *PostRepository) ListByAuthor(ctx context.Context, authorID string, limi
 	const query = `
 		SELECT id, title, created_at, updated_at
         FROM posts
-        WHERE author_id = $1 AND is_deleted = 0
+        WHERE author_id = $1
         ORDER BY created_at DESC
         LIMIT $2 OFFSET $3;
     `

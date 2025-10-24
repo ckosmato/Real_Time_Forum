@@ -17,14 +17,14 @@ func NewUserService(r repo.UserRepository) *UserService {
 	return &UserService{repo: r}
 }
 
-func (s *UserService) GetUserByID(ctx context.Context, id string) (*models.User, error) {
-	user, err := s.repo.GetUserByID(ctx, id)
+func (s *UserService) GetUserBySessionID(ctx context.Context, sessionID string) (*models.User, error) {
+	user, err := s.repo.GetUserBySessionID(ctx, sessionID)
 	if errors.Is(err, sql.ErrNoRows) {
-		log.Printf("GetUserByID: user with ID %s not found", id)
+		log.Printf("GetUserBySessionID: user with session ID %s not found", sessionID)
 		return nil, errors.New("user not found")
 	}
 	if err != nil {
-		log.Printf("GetUserByID: failed to retrieve user %s: %v", id, err)
+		log.Printf("GetUserBySessionID: failed to retrieve user %s: %v", sessionID, err)
 		return nil, errors.New("failed to retrieve user")
 	}
 	return user, nil

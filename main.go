@@ -120,7 +120,6 @@ func SetupDependencies(db *sql.DB) *Dependencies {
 	return &Dependencies{
 		UserService: *userService,
 		AuthService: *authService,
-
 		SessionService:    *sessionService,
 		PostService:       *postService,
 		CategoriesService: *categoriesService,
@@ -134,7 +133,7 @@ func SetupHandlers(deps *Dependencies) *Handlers {
 		AuthHandler:       handlers.NewAuthHandler(deps.AuthService, deps.SessionService),
 		CategoriesHandler: handlers.NewCategoriesHandler(deps.CategoriesService),
 		CommentsHandler:   handlers.NewCommentsHandler(deps.PostService, deps.CommentService, deps.CategoriesService),
-		DashboardHandler:  handlers.NewDashboardHandler(deps.PostService, deps.CategoriesService),
+		DashboardHandler:  handlers.NewDashboardHandler(deps.PostService, deps.CategoriesService, deps.UserService),
 		PostHandler:       handlers.NewPostHandler(deps.PostService, deps.CategoriesService, deps.CommentService),
 	}
 }
