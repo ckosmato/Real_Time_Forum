@@ -46,15 +46,13 @@ func (r *CommentRepository) UpdateComment(ctx context.Context, comment *models.C
 	return nil
 }
 
-
-
 func (r *CommentRepository) GetPostComments(ctx context.Context, postID string) ([]models.Comment, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT c.id, u.username, c.content, c.created_at, c.likes_count, c.dislikes_count
+		SELECT c.id, COALESCE(u.nickname, 'Unknown') as author_name, c.content, c.created_at
 		FROM comments c
-		JOIN users u ON c.author_id = u.id
+		LEFT JOIN users u ON c.author_id = u.id
 		WHERE c.post_id = ?
-		ORDER BY created_at DESC;
+		ORDER BY c.created_at DESC;
 	`, postID)
 	if err != nil {
 		return nil, err

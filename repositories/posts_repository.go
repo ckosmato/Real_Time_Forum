@@ -38,9 +38,9 @@ func (r *PostRepository) CreatePost(ctx context.Context, user *models.User, post
 	}()
 
 	insertPostQuery := `
-		INSERT INTO posts (id, author_id, title, content, created_at, image_name) 
-		VALUES (?, ?, ?, ?, ?, ?)`
-	_, err = tx.ExecContext(ctx, insertPostQuery, post.ID, user.ID, post.Title, post.Content, post.CreatedAt, post.Image)
+		INSERT INTO posts (id, author_id, title, content, created_at) 
+		VALUES (?, ?, ?, ?, ?)`
+	_, err = tx.ExecContext(ctx, insertPostQuery, post.ID, user.ID, post.Title, post.Content, post.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("CreatePost: inserting post: %w", err)
 	}
@@ -73,10 +73,17 @@ func (r *PostRepository) GetAllPosts(ctx context.Context) ([]models.Post, error)
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT
 		p.id,
+		COALESCE(u.nickname, 'Unknown') as author_name,
 		p.title,
 		p.content,
-		p.created_at
+		p.created_at,
+		GROUP_CONCAT(c.name, ',')
 		FROM posts p
+		LEFT JOIN users u ON p.author_id = u.id
+		LEFT JOIN post_categories pc ON p.id = pc.post_id
+		LEFT JOIN categories c ON pc.category_id = c.id
+		GROUP BY p.id
+		ORDER BY p.created_at DESC
 	`)
 	if err != nil {
 		return nil, err
@@ -95,7 +102,6 @@ func (r *PostRepository) GetAllPosts(ctx context.Context) ([]models.Post, error)
 			&pv.Title,
 			&pv.Content,
 			&pv.CreatedAt,
-			&pv.Image,
 			&cats,
 		); err != nil {
 			return nil, err
@@ -118,16 +124,13 @@ func (r *PostRepository) GetPostByID(ctx context.Context, postID string) (*model
 		SELECT
 		p.id,
 		p.author_id,
-		u.username,
+		COALESCE(u.nickname, 'Unknown') as author_name,
 		p.title,
 		p.content,
 		p.created_at,
-		p.likes_count,
-		p.dislikes_count,
-		p.image_name,
 		GROUP_CONCAT(c.name, ',')
 		FROM posts p
-		JOIN users u ON p.author_id = u.id
+		LEFT JOIN users u ON p.author_id = u.id
 		LEFT JOIN post_categories pc ON p.id = pc.post_id
 		LEFT JOIN categories c     ON pc.category_id = c.id
 		WHERE p.id = ?
@@ -144,14 +147,13 @@ func (r *PostRepository) GetPostByID(ctx context.Context, postID string) (*model
 		&pv.Title,
 		&pv.Content,
 		&pv.CreatedAt,
-		&pv.Image,
 		&cats,
 	); err != nil {
-        if err == sql.ErrNoRows {
-            log.Printf("GetPostByID: post with ID %s not found", postID)
-            return nil, fmt.Errorf("post with ID %s not found", postID)
-        }
-        return nil, err
+		if err == sql.ErrNoRows {
+			log.Printf("GetPostByID: post with ID %s not found", postID)
+			return nil, fmt.Errorf("post with ID %s not found", postID)
+		}
+		return nil, err
 	}
 	if cats.Valid {
 		pv.Categories = strings.Split(cats.String, ",")
@@ -163,16 +165,13 @@ func (r *PostRepository) GetPostsByCategory(ctx context.Context, categoryID stri
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT
 		p.id,
-		u.username,
+		COALESCE(u.nickname, 'Unknown') as author_name,
 		p.title,
 		p.content,
 		p.created_at,
-		p.likes_count,
-		p.dislikes_count,
-		p.image_name,
 		GROUP_CONCAT(c.name, ',')
 		FROM posts p
-		JOIN users u ON p.author_id = u.id
+		LEFT JOIN users u ON p.author_id = u.id
 		JOIN post_categories pc ON p.id = pc.post_id
 		LEFT JOIN categories c ON pc.category_id = c.id
 		WHERE pc.category_id = ?
@@ -195,7 +194,6 @@ func (r *PostRepository) GetPostsByCategory(ctx context.Context, categoryID stri
 			&pv.Title,
 			&pv.Content,
 			&pv.CreatedAt,
-			&pv.Image,
 			&cats,
 		); err != nil {
 			return nil, err
@@ -221,16 +219,13 @@ func (r *PostRepository) GetUserPosts(ctx context.Context, userID string) ([]mod
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT
 		p.id,
-		u.username,
+		COALESCE(u.nickname, 'Unknown') as author_name,
 		p.title,
 		p.content,
 		p.created_at,
-		p.likes_count,
-		p.dislikes_count,
-		p.image_name,
 		GROUP_CONCAT(c.name, ',')
 		FROM posts p
-		JOIN users u ON p.author_id = u.id
+		LEFT JOIN users u ON p.author_id = u.id
 		JOIN post_categories pc ON p.id = pc.post_id
 		LEFT JOIN categories c ON pc.category_id = c.id
 		WHERE p.author_id = ?
@@ -253,7 +248,6 @@ func (r *PostRepository) GetUserPosts(ctx context.Context, userID string) ([]mod
 			&pv.Title,
 			&pv.Content,
 			&pv.CreatedAt,
-			&pv.Image,
 			&cats,
 		); err != nil {
 			return nil, err
@@ -271,7 +265,6 @@ func (r *PostRepository) GetUserPosts(ctx context.Context, userID string) ([]mod
 	}
 	return posts, nil
 }
-
 
 func (r *PostRepository) ListByAuthor(ctx context.Context, authorID string, limit, offset int) ([]models.Post, error) {
 	const query = `
@@ -301,5 +294,3 @@ func (r *PostRepository) ListByAuthor(ctx context.Context, authorID string, limi
 	}
 	return results, nil
 }
-
-

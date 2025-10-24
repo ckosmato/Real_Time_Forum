@@ -230,6 +230,8 @@ class ForumApp {
             console.log('Dashboard response status:', response.status);
             
             const data = await response.json();
+            console.log('Dashboard response data:', data);
+            
             if (response.ok) {
                 // Update user information from the server response
                 if (data.user) {
@@ -243,6 +245,9 @@ class ForumApp {
 
                 this.categories = data.categories || [];
                 this.posts = data.posts || [];
+                
+                console.log('Loaded categories:', this.categories.length);
+                console.log('Loaded posts:', this.posts.length);
                 
                 this.renderCategories();
                 this.renderPosts();
@@ -340,21 +345,21 @@ class ForumApp {
     createPostCard(post) {
         const card = document.createElement('div');
         card.className = 'post-card';
-        card.addEventListener('click', () => this.viewPost(post.id));
+        card.addEventListener('click', () => this.viewPost(post.ID)); // Changed from post.id to post.ID
 
-        const categoriesHtml = post.categories ? 
-            post.categories.map(cat => `<span class="category-tag">${cat}</span>`).join('') : '';
+        const categoriesHtml = post.Categories ? 
+            post.Categories.map(cat => `<span class="category-tag">${cat}</span>`).join('') : '';
 
         card.innerHTML = `
             <div class="post-header">
-                <h3 class="post-title">${this.escapeHtml(post.title)}</h3>
+                <h3 class="post-title">${this.escapeHtml(post.Title)}</h3>
                 <div class="post-meta">
-                    <div>By: ${this.escapeHtml(post.authorName)}</div>
-                    <div>${this.formatDate(post.createdAt)}</div>
+                    <div>By: ${this.escapeHtml(post.AuthorName)}</div>
+                    <div>${this.formatDate(post.CreatedAt)}</div>
                 </div>
             </div>
             <div class="post-content">
-                ${this.escapeHtml(post.content.substring(0, 200))}${post.content.length > 200 ? '...' : ''}
+                ${this.escapeHtml((post.Content || '').substring(0, 200))}${(post.Content || '').length > 200 ? '...' : ''}
             </div>
             <div class="post-categories">
                 ${categoriesHtml}
@@ -365,21 +370,34 @@ class ForumApp {
     }
 
     async viewPost(postId) {
+        console.log('ViewPost called with postId:', postId, 'type:', typeof postId);
         this.selectedPostId = postId;
         this.showLoading();
 
         try {
-            const response = await fetch(`/post?id=${postId}`, { credentials: 'same-origin' });
-            const data = await response.json();
-
+            const url = `/post?id=${postId}`;
+            console.log('Fetching URL:', url);
+            const response = await fetch(url, { 
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            console.log('ViewPost response status:', response.status);
+            
             if (response.ok) {
+                const data = await response.json();
                 this.renderPostDetail(data.post, data.comments || []);
                 this.showView('post');
             } else {
-                this.showToast('Failed to load post', 'error');
+                const data = await response.json();
+                console.error('ViewPost error:', data);
+                this.showToast('Failed to load post: ' + (data.error || 'Unknown error'), 'error');
             }
         } catch (error) {
-            this.showToast('Network error', 'error');
+            console.error('ViewPost network error:', error);
+            this.showToast('Network error while loading post', 'error');
         } finally {
             this.hideLoading();
         }
@@ -388,29 +406,32 @@ class ForumApp {
     renderPostDetail(post, comments) {
         const container = document.getElementById('post-detail');
         
-        const categoriesHtml = post.categories ? 
-            post.categories.map(cat => `<span class="category-tag">${cat}</span>`).join('') : '';
+        const categoriesHtml = post.Categories ? 
+            post.Categories.map(cat => `<span class="category-tag">${cat}</span>`).join('') : '';
 
         const commentsHtml = comments.map(comment => `
             <div class="comment">
                 <div class="comment-header">
-                    <span class="comment-author">${this.escapeHtml(comment.authorName)}</span>
-                    <span class="comment-date">${this.formatDate(comment.createdAt)}</span>
+                    <span class="comment-author">${this.escapeHtml(comment.AuthorName || comment.authorName)}</span>
+                    <span class="comment-date">${this.formatDate(comment.CreatedAt || comment.createdAt)}</span>
                 </div>
-                <div class="comment-content">${this.escapeHtml(comment.content)}</div>
+                <div class="comment-content">${this.escapeHtml(comment.Content || comment.content)}</div>
             </div>
         `).join('');
 
         container.innerHTML = `
+            <div class="post-navigation">
+                <button onclick="app.showView('home')" class="back-btn">← Back to Posts</button>
+            </div>
             <div class="post-header">
-                <h1 class="post-title">${this.escapeHtml(post.title)}</h1>
+                <h1 class="post-title">${this.escapeHtml(post.Title)}</h1>
                 <div class="post-meta">
-                    <div>By: ${this.escapeHtml(post.authorName)}</div>
-                    <div>${this.formatDate(post.createdAt)}</div>
+                    <div>By: ${this.escapeHtml(post.AuthorName)}</div>
+                    <div>${this.formatDate(post.CreatedAt)}</div>
                 </div>
             </div>
             <div class="post-content" style="margin: 2rem 0;">
-                ${this.escapeHtml(post.content).replace(/\n/g, '<br>')}
+                ${this.escapeHtml(post.Content || '').replace(/\n/g, '<br>')}
             </div>
             <div class="post-categories">
                 ${categoriesHtml}
@@ -480,6 +501,8 @@ class ForumApp {
         const selectedCategories = Array.from(document.querySelectorAll('#post-categories input:checked'))
             .map(cb => cb.value);
 
+        console.log('Creating post with:', { title, content, selectedCategories });
+
         if (selectedCategories.length === 0) {
             this.showToast('Please select at least one category', 'error');
             this.hideLoading();
@@ -494,13 +517,18 @@ class ForumApp {
                 formData.append('categories', categoryId);
             });
 
+            console.log('Sending request to /createpost...');
+
             const response = await fetch('/createpost', {
                 method: 'POST',
                 credentials: 'same-origin',
                 body: formData
             });
 
+            console.log('Response status:', response.status, 'Response ok:', response.ok);
+
             const data = await response.json();
+            console.log('Response data:', data);
 
             if (response.ok) {
                 this.showToast('Post created successfully!', 'success');
@@ -511,6 +539,7 @@ class ForumApp {
                 this.showToast(data.error || 'Failed to create post', 'error');
             }
         } catch (error) {
+            console.error('Network error details:', error);
             this.showToast('Network error', 'error');
         } finally {
             this.hideLoading();
@@ -608,6 +637,14 @@ class ForumApp {
     }
 
     escapeHtml(text) {
+        // Handle undefined, null, or non-string values
+        if (text === undefined || text === null) {
+            return '';
+        }
+        
+        // Convert to string if it's not already a string
+        text = String(text);
+        
         const map = {
             '&': '&amp;',
             '<': '&lt;',
