@@ -603,6 +603,14 @@ class ForumApp {
             document.getElementById(`${viewName}-btn`).classList.add('active');
         }
 
+        // Hide/show sidebar based on view
+        const sidebar = document.querySelector('.sidebar');
+        if (viewName === 'post') {
+            sidebar.style.display = 'none';
+        } else {
+            sidebar.style.display = 'block';
+        }
+
         this.currentView = viewName;
 
         // Load data based on view
