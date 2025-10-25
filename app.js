@@ -317,7 +317,16 @@ class ForumApp {
                 url = `/category/${categoryId}`;
             }
 
-            const response = await fetch(url, { credentials: 'same-origin' });
+            // Get session id from cookie
+            const sessionId = this.getCookie('session_id');
+
+            const response = await fetch(url, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'X-Session-ID': sessionId
+                }
+            });
             const data = await response.json();
 
             if (response.ok) {
