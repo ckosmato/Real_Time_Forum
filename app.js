@@ -29,6 +29,13 @@ class ForumApp {
 
         // Post creation
         document.getElementById('createPostForm').addEventListener('submit', (e) => this.handleCreatePost(e));
+
+        // Online users widget toggle
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.widget-header')) {
+                this.toggleOnlineUsersWidget();
+            }
+        });
     }
 
     async checkAuthStatus() {
@@ -309,6 +316,23 @@ class ForumApp {
             userDiv.textContent = this.escapeHtml(user.Nickname);
             container.appendChild(userDiv);
         });
+    }
+
+    toggleOnlineUsersWidget() {
+        const widgetContent = document.querySelector('.widget-content');
+        const toggleButton = document.querySelector('.widget-toggle');
+        
+        if (widgetContent && toggleButton) {
+            const isCollapsed = widgetContent.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                widgetContent.classList.remove('collapsed');
+                toggleButton.classList.remove('collapsed');
+            } else {
+                widgetContent.classList.add('collapsed');
+                toggleButton.classList.add('collapsed');
+            }
+        }
     }
 
     renderCategories() {

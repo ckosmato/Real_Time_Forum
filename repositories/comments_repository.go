@@ -37,14 +37,6 @@ func (r *CommentRepository) GetCommentByID(ctx context.Context, commentID string
 	return &comment, nil
 }
 
-func (r *CommentRepository) UpdateComment(ctx context.Context, comment *models.Comment) error {
-	_, err := r.db.ExecContext(ctx, "UPDATE comments SET content = ? WHERE id = ?", comment.Content, comment.ID)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
 
 func (r *CommentRepository) GetPostComments(ctx context.Context, postID string) ([]models.Comment, error) {
 	rows, err := r.db.QueryContext(ctx, `
