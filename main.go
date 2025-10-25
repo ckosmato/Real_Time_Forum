@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 	"real-time-forum/handlers"
 	"real-time-forum/repositories"
 	"real-time-forum/services"
 	"strings"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3" // Add this import
 )
@@ -46,12 +49,16 @@ func main() {
 	mux := http.NewServeMux()
 	Configure(mux, handlers)
 
+	// Start background tasks
+	go BackgroundTasks(deps.SessionService, deps.UserService)
+
 	port := ":8080"
 	println("Server listening on", port)
 	println("Open http://localhost:8080 in your browser to view the forum")
 	if err := http.ListenAndServe(port, mux); err != nil {
 		panic(err)
 	}
+
 }
 
 func Configure(mux *http.ServeMux, h *Handlers) {
@@ -136,5 +143,17 @@ func SetupHandlers(deps *Dependencies) *Handlers {
 		CommentsHandler:   handlers.NewCommentsHandler(deps.PostService, deps.CommentService, deps.CategoriesService, deps.UserService),
 		DashboardHandler:  handlers.NewDashboardHandler(deps.PostService, deps.CategoriesService, deps.UserService),
 		PostHandler:       handlers.NewPostHandler(deps.PostService, deps.CategoriesService, deps.CommentService, deps.UserService),
+	}
+}
+
+
+func BackgroundTasks(sessionService services.SessionService, userService services.UserService) {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if err := sessionService.CleanupExpiredSessions(context.Background()); err != nil {
+			log.Printf("Session cleanup error: %v", err)
+		}
 	}
 }
