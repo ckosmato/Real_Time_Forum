@@ -638,7 +638,7 @@ class ForumApp {
 
         // Hide/show sidebar based on view
         const sidebar = document.querySelector('.sidebar');
-        if (viewName === 'post') {
+        if (viewName === 'post' || viewName === 'create-post' || viewName === 'my-posts') {
             sidebar.style.display = 'none';
         } else {
             sidebar.style.display = 'block';
@@ -650,7 +650,6 @@ class ForumApp {
         if (viewName === 'my-posts') {
             this.loadMyPosts();
         }
-        // Categories for create-post are handled by static HTML - no need to render
     }
 
     showLoading() {
