@@ -39,6 +39,8 @@ class ForumApp {
             await this.loadDashboard();
         } else {
             this.showAuth();
+            // Still render categories even when not logged in
+            this.renderCategories();
         }
     }
 
@@ -181,7 +183,6 @@ class ForumApp {
                 
                 // Clear any displayed content
                 document.getElementById('posts-container').innerHTML = '';
-                document.getElementById('categories-list').innerHTML = '';
                 document.getElementById('my-posts-container').innerHTML = '';
                 
                 // Reset username display
@@ -254,10 +255,14 @@ class ForumApp {
             } else {
                 console.error('Failed to load posts:', data.error);
                 this.showToast('Failed to load posts. Please refresh the page.', 'error');
+                // Still render categories even if the request failed
+                this.renderCategories();
             }
         } catch (error) {
             console.error('Dashboard error:', error);
             this.showToast('Failed to load content. Please refresh the page.', 'error');
+            // Still render categories even if there's a network error
+            this.renderCategories();
         } finally {
             this.hideLoading();
         }
@@ -275,19 +280,32 @@ class ForumApp {
     renderCategories() {
         const container = document.getElementById('categories-list');
         
-        // Don't clear the container - keep the hardcoded categories
-        // container.innerHTML = '';
-
-        // Just add click handlers to existing categories
+        // Check if categories are missing and restore them if needed
         const categoryItems = container.querySelectorAll('.category-item');
-        categoryItems.forEach((item, index) => {
+        if (categoryItems.length === 0) {
+            // Restore hardcoded categories if they're missing
+            container.innerHTML = `
+                <div class="category-item active">All Posts</div>
+                <div class="category-item">General Discussion</div>
+                <div class="category-item">Sports</div>
+                <div class="category-item">Music</div>
+                <div class="category-item">Movies & TV</div>
+                <div class="category-item">Books</div>
+                <div class="category-item">Science</div>
+                <div class="category-item">News</div>
+            `;
+        }
+
+        // Add click handlers to categories
+        const updatedCategoryItems = container.querySelectorAll('.category-item');
+        updatedCategoryItems.forEach((item, index) => {
             // Remove existing click listeners to avoid duplicates
             item.replaceWith(item.cloneNode(true));
         });
 
         // Re-select after cloning (to get fresh elements without old listeners)
-        const updatedCategoryItems = container.querySelectorAll('.category-item');
-        updatedCategoryItems.forEach((item, index) => {
+        const finalCategoryItems = container.querySelectorAll('.category-item');
+        finalCategoryItems.forEach((item, index) => {
             if (index === 0) {
                 // First item is "All Posts"
                 item.addEventListener('click', () => this.filterByCategory(null));
