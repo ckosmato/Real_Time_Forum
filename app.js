@@ -12,6 +12,29 @@ class ForumApp {
     init() {
         this.bindEvents();
         this.checkAuthStatus();
+        this.initializeWidget();
+    }
+
+    initializeWidget() {
+        try {
+            const widget = document.querySelector('.online-users-widget');
+            if (!widget) return;
+
+            const content = widget.querySelector('.widget-content');
+            const toggle = widget.querySelector('.widget-toggle');
+            const header = widget.querySelector('.widget-header');
+
+            // Initialize closed state
+            widget.classList.add('closed');
+            if (content) content.classList.add('collapsed');
+            if (toggle) toggle.classList.add('collapsed');
+
+            // Bind event listeners
+            if (toggle) toggle.addEventListener('click', (e) => this.toggleOnlineUsersWidget(e));
+            if (header) header.addEventListener('click', (e) => this.toggleOnlineUsersWidget(e));
+        } catch (err) {
+            console.error('Error initializing online users widget:', err);
+        }
     }
 
     bindEvents() {
@@ -29,13 +52,6 @@ class ForumApp {
 
         // Post creation
         document.getElementById('createPostForm').addEventListener('submit', (e) => this.handleCreatePost(e));
-
-        // Online users widget toggle
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.widget-header')) {
-                this.toggleOnlineUsersWidget();
-            }
-        });
     }
 
     async checkAuthStatus() {
@@ -318,21 +334,27 @@ class ForumApp {
         });
     }
 
-    toggleOnlineUsersWidget() {
-        const widgetContent = document.querySelector('.widget-content');
-        const toggleButton = document.querySelector('.widget-toggle');
+    // Toggle the online users widget open/closed
+    toggleOnlineUsersWidget(e) {
+        if (e && e.stopPropagation) e.stopPropagation();
         
-        if (widgetContent && toggleButton) {
-            const isCollapsed = widgetContent.classList.contains('collapsed');
-            
-            if (isCollapsed) {
-                widgetContent.classList.remove('collapsed');
-                toggleButton.classList.remove('collapsed');
-            } else {
-                widgetContent.classList.add('collapsed');
-                toggleButton.classList.add('collapsed');
-            }
-        }
+        // Use event delegation to get the widget from the click event's path
+        const widget = e.target.closest('.online-users-widget');
+        if (!widget) return;
+        
+        // Find elements once
+        const content = widget.querySelector('.widget-content');
+        const toggle = widget.querySelector('.widget-toggle');
+        const isClosed = widget.classList.contains('closed');
+
+        // Toggle all classes in one batch
+        [
+            [widget, 'closed'],
+            [content, 'collapsed'],
+            [toggle, 'collapsed']
+        ].forEach(([element, className]) => {
+            if (element) element.classList.toggle(className, !isClosed);
+        });
     }
 
     renderCategories() {
