@@ -14,15 +14,6 @@ func NewCategoriesRepository(db *sql.DB) *CategoriesRepository {
 	return &CategoriesRepository{db: db}
 }
 
-func (c *CategoriesRepository) CreateCategory(ctx context.Context, category models.Category) error {
-	_, err := c.db.ExecContext(ctx, "INSERT INTO categories (id, name) VALUES (?,?)", category.ID, category.Name)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 
 func (p *CategoriesRepository) GetAllCategories(ctx context.Context) ([]models.Category, error) {
 	rows, err := p.db.QueryContext(ctx, "SELECT id, name FROM categories")

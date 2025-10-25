@@ -29,7 +29,6 @@ type Handlers struct {
 	AuthHandler       *handlers.AuthHandler
 	DashboardHandler  *handlers.DashboardHandler
 	PostHandler       *handlers.PostHandler
-	CategoriesHandler *handlers.CategoriesHandler
 	CommentsHandler   *handlers.CommentsHandler
 }
 
@@ -80,7 +79,6 @@ func Configure(mux *http.ServeMux, h *Handlers) {
 	mux.Handle("/post", loggingHandler(http.HandlerFunc(h.PostHandler.ViewPost)))
 	mux.Handle("/post/createcomment", loggingHandler(http.HandlerFunc(h.CommentsHandler.CreateComment)))
 	mux.Handle("/category/", loggingHandler(http.HandlerFunc(h.DashboardHandler.PostsByCategory)))
-	mux.Handle("/admin/createcategory", loggingHandler(http.HandlerFunc(h.CategoriesHandler.CreateCategory)))
 
 	// Static files
 	mux.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
@@ -139,7 +137,6 @@ func SetupHandlers(deps *Dependencies) *Handlers {
 	// Handlers
 	return &Handlers{
 		AuthHandler:       handlers.NewAuthHandler(deps.AuthService, deps.SessionService),
-		CategoriesHandler: handlers.NewCategoriesHandler(deps.CategoriesService),
 		CommentsHandler:   handlers.NewCommentsHandler(deps.PostService, deps.CommentService, deps.CategoriesService, deps.UserService),
 		DashboardHandler:  handlers.NewDashboardHandler(deps.PostService, deps.CategoriesService, deps.UserService),
 		PostHandler:       handlers.NewPostHandler(deps.PostService, deps.CategoriesService, deps.CommentService, deps.UserService),

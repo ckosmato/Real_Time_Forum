@@ -46,12 +46,3 @@ func (s *CommentsService) GetPostComments(ctx context.Context, postID string) ([
 	}
 	return postComments, nil
 }
-
-func (s *CommentsService) GetCommentByID(ctx context.Context, commentID string) (*models.Comment, error) {
-	comment, err := s.repo.GetCommentByID(ctx, commentID)
-	if err != nil {
-		log.Printf("GetCommentByID: failed to retrieve comment %s: %v", commentID, err)
-		return nil, errors.New("failed to retrieve comment")
-	}
-	return comment, nil
-}

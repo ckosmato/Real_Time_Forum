@@ -51,15 +51,6 @@ func (h *DashboardHandler) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	categories, err := h.categoriesService.GetAllCategories(r.Context())
-	if err != nil {
-		log.Printf("Home: failed to fetch categories: %v", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to fetch categories"})
-		return
-	}
-
 	// Try to get user from session, but don't fail if not found
 	var user *models.User
 	sessionID := r.Header.Get("X-Session-ID")
@@ -76,7 +67,6 @@ func (h *DashboardHandler) Home(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"user":       user,
 		"posts":      posts,
-		"categories": categories,
 	})
 }
 

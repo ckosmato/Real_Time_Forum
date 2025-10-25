@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"log"
 	"real-time-forum/models"
@@ -41,25 +40,6 @@ func (s *SessionService) GenerateSession(ctx context.Context, user *models.User)
 	if err := s.repo.CreateSession(ctx, session); err != nil {
 		log.Printf("GenerateSession: failed to save session: %v", err)
 		return models.Session{}, errors.New("failed to save session")
-	}
-
-	return session, nil
-}
-
-func (s *SessionService) GetSession(ctx context.Context, sessionID string) (*models.Session, error) {
-	session, err := s.repo.GetSessionByID(ctx, sessionID)
-	if errors.Is(err, sql.ErrNoRows) {
-		log.Printf("GetSession: session %s not found", sessionID)
-		return nil, errors.New("session not found")
-	}
-	if err != nil {
-		log.Printf("GetSession: internal server error for session %s: %v", sessionID, err)
-		return nil, errors.New("internal server error")
-	}
-
-	if time.Now().After(session.ExpiresAt) {
-		log.Printf("GetSession: session %s expired", sessionID)
-		return nil, errors.New("session expired")
 	}
 
 	return session, nil
