@@ -40,6 +40,9 @@ func (r *PostRepository) CreatePost(ctx context.Context, user *models.User, post
 	insertPostQuery := `
 		INSERT INTO posts (id, author_id, title, content, created_at) 
 		VALUES (?, ?, ?, ?, ?)`
+
+	log.Printf("CreatePost: inserting post with ID='%s', AuthorID='%s', Title='%s'", post.ID, user.ID, post.Title)
+
 	_, err = tx.ExecContext(ctx, insertPostQuery, post.ID, user.ID, post.Title, post.Content, post.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("CreatePost: inserting post: %w", err)

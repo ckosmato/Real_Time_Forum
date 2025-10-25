@@ -132,7 +132,7 @@ func SetupHandlers(deps *Dependencies) *Handlers {
 	return &Handlers{
 		AuthHandler:       handlers.NewAuthHandler(deps.AuthService, deps.SessionService),
 		CategoriesHandler: handlers.NewCategoriesHandler(deps.CategoriesService),
-		CommentsHandler:   handlers.NewCommentsHandler(deps.PostService, deps.CommentService, deps.CategoriesService),
+		CommentsHandler:   handlers.NewCommentsHandler(deps.PostService, deps.CommentService, deps.CategoriesService, deps.UserService),
 		DashboardHandler:  handlers.NewDashboardHandler(deps.PostService, deps.CategoriesService, deps.UserService),
 		PostHandler:       handlers.NewPostHandler(deps.PostService, deps.CategoriesService, deps.CommentService, deps.UserService),
 	}

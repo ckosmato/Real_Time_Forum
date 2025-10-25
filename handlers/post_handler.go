@@ -63,6 +63,8 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		log.Printf("CreatePost: authenticated user ID='%s', Nickname='%s'", user.ID, user.Nickname)
+
 		log.Printf("CreatePost: authenticated user ID=%s, nickname=%s", user.ID, user.Nickname)
 
 		if err := r.ParseMultipartForm(20 << 20); err != nil {

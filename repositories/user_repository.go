@@ -26,7 +26,6 @@ func (r *UserRepository) CreateUser(ctx context.Context, user *models.User) erro
 	return nil
 }
 
-
 func (r *UserRepository) CheckUser(ctx context.Context, user *models.User) (bool, error) {
 	var exists int
 	err := r.db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM users WHERE nickname = ? OR email = ?)", user.Nickname, user.Email).Scan(&exists)
@@ -51,7 +50,7 @@ func (r *UserRepository) GetUserByEmailorName(ctx context.Context, email, name s
 
 func (r *UserRepository) GetUserBySessionID(ctx context.Context, SessionID string) (*models.User, error) {
 	user := models.User{}
-	err := r.db.QueryRowContext(ctx, `SELECT u.nickname, u.email FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.session_id = ?`, SessionID).Scan(&user.Nickname, &user.Email)
+	err := r.db.QueryRowContext(ctx, `SELECT u.id, u.nickname, u.email FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.session_id = ?`, SessionID).Scan(&user.ID, &user.Nickname, &user.Email)
 	if err != nil {
 
 		return nil, err // return the raw DB error
@@ -77,6 +76,3 @@ func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error)
 
 	return users, nil
 }
-
-
-

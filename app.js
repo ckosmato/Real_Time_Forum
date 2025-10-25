@@ -504,7 +504,7 @@ class ForumApp {
 
             const response = await fetch('/post/createcomment', {
                 method: 'POST',
-                credentials: 'same-origin',
+                credentials: 'include',
                 body: formData
             });
 

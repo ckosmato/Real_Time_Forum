@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"real-time-forum/models"
 	"real-time-forum/services"
-    "real-time-forum/utils"
 	"strings"
 )
 
@@ -14,13 +13,15 @@ type CommentsHandler struct {
 	postService       services.PostService
 	commentService    services.CommentsService
 	categoriesService services.CategoriesService
+	userService       services.UserService
 }
 
-func NewCommentsHandler(ps services.PostService, coms services.CommentsService, cs services.CategoriesService) *CommentsHandler {
+func NewCommentsHandler(ps services.PostService, coms services.CommentsService, cs services.CategoriesService, us services.UserService) *CommentsHandler {
 	return &CommentsHandler{
 		postService:       ps,
 		commentService:    coms,
 		categoriesService: cs,
+		userService:       us,
 	}
 }
 
@@ -33,18 +34,44 @@ func (h *CommentsHandler) CreateComment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	user := utils.GetUserFromContext(r.Context())
-
-	if err := r.ParseForm(); err != nil {
-		log.Printf("CreateComment: invalid form data: %v", err)
+	// Get user from session cookie
+	sessionCookie, err := r.Cookie("session_id")
+	if err != nil {
+		log.Printf("CreateComment: no session cookie found: %v", err)
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid form data"})
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Not logged in"})
 		return
+	}
+
+	// Validate session and get user
+	user, err := h.userService.GetUserBySessionID(r.Context(), sessionCookie.Value)
+	if err != nil {
+		log.Printf("CreateComment: invalid session: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid session"})
+		return
+	}
+
+	log.Printf("CreateComment: authenticated user ID='%s', Nickname='%s'", user.ID, user.Nickname)
+
+	// Parse multipart form data
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		// If multipart parsing fails, try regular form parsing
+		if err := r.ParseForm(); err != nil {
+			log.Printf("CreateComment: invalid form data: %v", err)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid form data"})
+			return
+		}
 	}
 
 	comment_input := r.FormValue("comment")
 	postIDStr := r.FormValue("post_id")
+
+	log.Printf("CreateComment: received comment='%s', post_id='%s'", comment_input, postIDStr)
 
 	if strings.TrimSpace(comment_input) == "" {
 		log.Printf("CreateComment: comment cannot be empty")
@@ -59,6 +86,8 @@ func (h *CommentsHandler) CreateComment(w http.ResponseWriter, r *http.Request) 
 		AuthorID: user.ID,
 		Content:  comment_input,
 	}
+
+	log.Printf("CreateComment: creating comment with AuthorID='%s', PostID='%s', Content='%s'", user.ID, postIDStr, comment_input)
 
 	if err := h.commentService.CreateComment(r.Context(), &comment); err != nil {
 		log.Printf("CreateComment: failed to create comment: %v", err)
