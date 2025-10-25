@@ -75,6 +75,7 @@ func Configure(mux *http.ServeMux, h *Handlers) {
 	mux.Handle("/logout", loggingHandler(http.HandlerFunc(h.AuthHandler.LogOut)))
 	mux.Handle("/dashboard", loggingHandler(http.HandlerFunc(h.DashboardHandler.Home)))
 	mux.Handle("/dashboard/my-posts", loggingHandler(http.HandlerFunc(h.DashboardHandler.UserPosts)))
+	mux.Handle("/dashboard/active-users", loggingHandler(http.HandlerFunc(h.DashboardHandler.ActiveUsers)))
 	mux.Handle("/createpost", loggingHandler(http.HandlerFunc(h.PostHandler.CreatePost)))
 	mux.Handle("/post", loggingHandler(http.HandlerFunc(h.PostHandler.ViewPost)))
 	mux.Handle("/post/createcomment", loggingHandler(http.HandlerFunc(h.CommentsHandler.CreateComment)))

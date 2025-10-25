@@ -3,6 +3,7 @@ package repositories
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"real-time-forum/models"
 )
@@ -58,8 +59,9 @@ func (r *UserRepository) GetUserBySessionID(ctx context.Context, SessionID strin
 	return &user, nil
 }
 
-func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT id, nickname, email FROM users")
+func (r *UserRepository) GetActiveUsers(ctx context.Context) ([]models.User, error) {
+	now := time.Now()
+	rows, err := r.db.QueryContext(ctx, "SELECT u.id, u.nickname, u.email FROM users u JOIN sessions s ON u.id = s.user_id WHERE s.expires_at > ?", now)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +70,7 @@ func (r *UserRepository) GetAllUsers(ctx context.Context) ([]models.User, error)
 	var users []models.User
 	for rows.Next() {
 		var user models.User
-		if err := rows.Scan(&user.ID, &user.Nickname); err != nil {
+		if err := rows.Scan(&user.ID, &user.Nickname, &user.Email); err != nil {
 			return nil, err
 		}
 		users = append(users, user)

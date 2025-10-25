@@ -218,6 +218,7 @@ class ForumApp {
             // Show the dashboard UI immediately after successful login
             this.showApp();
             this.showView('home');
+            this.loadActiveUsers();
 
             // Now fetch posts and categories and send session id in headers
             console.log('Fetching dashboard data...');
@@ -275,6 +276,39 @@ class ForumApp {
                 usernameElement.textContent = this.currentUser.nickname;
             }
         }
+    }
+
+    async loadActiveUsers() {
+        this.showLoading();
+
+        try {
+            const response = await fetch('/dashboard/active-users', {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                this.renderActiveUsers(data.users);
+            } else {
+                console.error('Failed to load active users');
+            }
+        } catch (error) {
+            console.error('Error loading active users:', error);
+        } finally {
+            this.hideLoading();
+        }
+    }
+
+    renderActiveUsers(users) {
+        const container = document.getElementById('active-users-list');
+        container.innerHTML = '';
+        users.forEach(user => {
+            const userDiv = document.createElement('div');
+            userDiv.className = 'active-user';
+            userDiv.textContent = this.escapeHtml(user.Nickname);
+            container.appendChild(userDiv);
+        });
     }
 
     renderCategories() {

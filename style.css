@@ -281,7 +281,28 @@ body {
   padding: 0 2rem;
   flex: 1;
 }
-
+.active-users-sidebar {
+  width: 250px;
+  background: #2d2d39;
+  padding: 1.5rem;
+  border-radius: 15px;
+  height: fit-content;
+}
+.active-users h3 {
+  color: #45f3ff;
+  margin-bottom: 1rem;
+}
+#active-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+#active-users-list .active-user {
+  background: #1a1a1f;
+  padding: 0.75rem;
+  border-radius: 10px;
+  color: #ddd;
+}
 .sidebar {
   width: 250px;
   background: #2d2d39;
