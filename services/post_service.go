@@ -75,6 +75,7 @@ func (s *PostService) GetPostsByCategory(ctx context.Context, categoryID string)
 }
 
 func (s *PostService) GetUserPosts(ctx context.Context, userID string) ([]models.Post, error) {
+	
 	posts, err := s.repo.GetUserPosts(ctx, userID)
 	if err != nil {
 		log.Printf("GetUserPosts: failed to fetch posts of user %s: %v", userID, err)

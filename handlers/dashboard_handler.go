@@ -157,14 +157,12 @@ func (h *DashboardHandler) UserPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user := utils.GetUserFromContext(r.Context())
-
-	categories, err := h.categoriesService.GetAllCategories(r.Context())
+	user, err := h.userService.GetUserBySessionID(r.Context(), r.Header.Get("X-Session-ID"))
 	if err != nil {
-		log.Printf("UserPosts: failed to fetch categories: %v", err)
+		log.Printf("UserPosts: failed to get user from session: %v", err)
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to fetch categories"})
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
 		return
 	}
 
@@ -180,8 +178,6 @@ func (h *DashboardHandler) UserPosts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"user":       user,
 		"posts":      posts,
-		"categories": categories,
 	})
 }

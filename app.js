@@ -586,8 +586,14 @@ class ForumApp {
 
         try {
             // This would need a new endpoint in your backend
-            const response = await fetch(`/user/${this.currentUser.id}/posts`, { credentials: 'same-origin' });
-            
+            const response = await fetch(`/dashboard/my-posts`, {
+                method: 'GET',
+                headers: {
+                    'X-SESSION-ID': this.getCookie('session_id')
+                },
+                credentials: 'same-origin'
+            });
+
             if (response.ok) {
                 const data = await response.json();
                 const container = document.getElementById('my-posts-container');
