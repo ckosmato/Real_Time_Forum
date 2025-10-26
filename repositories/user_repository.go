@@ -59,9 +59,9 @@ func (r *UserRepository) GetUserBySessionID(ctx context.Context, SessionID strin
 	return &user, nil
 }
 
-func (r *UserRepository) GetActiveUsers(ctx context.Context) ([]models.User, error) {
+func (r *UserRepository) GetActiveUsers(ctx context.Context, sessionID string) ([]models.User, error) {
 	now := time.Now()
-	rows, err := r.db.QueryContext(ctx, "SELECT u.id, u.nickname, u.email FROM users u JOIN sessions s ON u.id = s.user_id WHERE s.expires_at > ?", now)
+	rows, err := r.db.QueryContext(ctx, "SELECT u.id, u.nickname, u.email FROM users u JOIN sessions s ON u.id = s.user_id WHERE s.expires_at > ? AND s.session_id != ?", now, sessionID)
 	if err != nil {
 		return nil, err
 	}

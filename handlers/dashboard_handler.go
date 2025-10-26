@@ -181,7 +181,16 @@ func (h *DashboardHandler) ActiveUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	activeUsers, err := h.userService.GetActiveUsers(r.Context())
+	sessionID := r.Header.Get("X-Session-ID")
+	if sessionID == "" {
+		log.Printf("GetActiveUsers: missing session ID")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
+		return
+	}
+
+	activeUsers, err := h.userService.GetActiveUsers(r.Context(), sessionID)
 	if err != nil {
 		log.Printf("GetActiveUsers: failed to fetch active users: %v", err)
 		w.Header().Set("Content-Type", "application/json")

@@ -309,7 +309,11 @@ class ForumApp {
         try {
             const response = await fetch('/dashboard/active-users', {
                 method: 'GET',
-                credentials: 'include'
+                credentials: 'include',
+                headers: {
+                    'X-Session-ID': this.getCookie('session_id')
+                }
+               
             });
 
             if (response.ok) {
