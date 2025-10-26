@@ -68,10 +68,10 @@ func (s *AuthService) LoginUser(ctx context.Context, input *models.User) (*model
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Printf("LoginUser: user not found: %v", err)
-			return nil,err
+			return nil, errors.New("user not found")
 		}
 		log.Printf("LoginUser: error retrieving user: %v", err)
-		return nil,err
+		return nil, errors.New("error retrieving user")
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password))
