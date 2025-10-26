@@ -68,7 +68,7 @@ func (s *AuthService) LoginUser(ctx context.Context, input *models.User) (*model
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			log.Printf("LoginUser: user not found: %v", err)
-			return nil, errors.New("user not found")
+			return nil, errors.New("invalid input credentials")
 		}
 		log.Printf("LoginUser: error retrieving user: %v", err)
 		return nil, errors.New("error retrieving user")
