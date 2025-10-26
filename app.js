@@ -61,9 +61,13 @@ class ForumApp {
         if (sessionCookie) {     
             await this.loadDashboard();
         } else {
+            this.clearState();
             this.showAuth();
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('register-form').style.display = 'none';
+            console.log("not logged in");
             // Still render categories even when not logged in
-            this.renderCategories();
+            //this.renderCategories();
         }
     }
 
@@ -199,17 +203,7 @@ class ForumApp {
 
             if (response.ok) {
                 // Clear all state
-                this.currentUser = null;
-                this.categories = [];
-                this.posts = [];
-                this.selectedPostId = null;
-                
-                // Clear any displayed content
-                document.getElementById('posts-container').innerHTML = '';
-                document.getElementById('my-posts-container').innerHTML = '';
-                
-                // Reset username display
-                document.getElementById('username-display').textContent = '';
+                this.clearState();
                 
                 // Show auth container and ensure login form is visible
                 this.showAuth();
@@ -265,6 +259,10 @@ class ForumApp {
                     };
                     this.updateUserDisplay();
                 } else {
+                    this.clearState();
+                    this.showAuth();
+                    document.getElementById('login-form').style.display = 'block';
+                    document.getElementById('register-form').style.display = 'none';
                     console.error('No user data in dashboard response');
                 }
 
@@ -900,7 +898,23 @@ class ForumApp {
         const date = new Date(dateString);
         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
     }
+    clearState() {
+                        // Clear all state
+                this.currentUser = null;
+                this.categories = [];
+                this.posts = [];
+                this.selectedPostId = null;
+                
+                // Clear any displayed content
+                document.getElementById('posts-container').innerHTML = '';
+                document.getElementById('my-posts-container').innerHTML = '';
+                
+                // Reset username display
+                document.getElementById('username-display').textContent = '';
+            };
 }
+
+
 
 // Initialize the app
 const app = new ForumApp();
