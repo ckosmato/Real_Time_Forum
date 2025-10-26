@@ -21,8 +21,8 @@ func (r *SessionRepository) CreateSession(ctx context.Context, session models.Se
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO sessions (session_id, user_id, created_at, expires_at)
 		VALUES (?, ?, ?, ?)
-		ON CONFLICT(session_id) DO UPDATE SET
-			user_id = excluded.user_id,
+		ON CONFLICT(user_id) DO UPDATE SET
+			session_id = excluded.session_id,
 			created_at = excluded.created_at,
 			expires_at = excluded.expires_at
 	`, session.ID, session.UserID, session.CreatedAt, session.ExpiresAt)
