@@ -289,6 +289,8 @@ class ForumApp {
             this.renderCategories();
         } finally {
             this.hideLoading();
+            // Initialize chat event listeners after dashboard is loaded
+            this.initializeChatEventListeners();
         }
     }
 
@@ -330,6 +332,12 @@ class ForumApp {
             const userDiv = document.createElement('div');
             userDiv.className = 'active-user';
             userDiv.textContent = this.escapeHtml(user.Nickname);
+            userDiv.dataset.username = user.Nickname;
+            userDiv.addEventListener('click', (e) => {
+                console.log('User clicked:', user.Nickname); // Debug log
+                e.stopPropagation(); // Prevent widget toggle when clicking user
+                this.openChatWithUser(user.Nickname);
+            });
             container.appendChild(userDiv);
         });
     }
@@ -355,6 +363,109 @@ class ForumApp {
         ].forEach(([element, className]) => {
             if (element) element.classList.toggle(className, !isClosed);
         });
+    }
+
+    openChatWithUser(username) {
+        console.log('Opening chat with user:', username); // Debug log
+        
+        const chatWidget = document.getElementById('chat-widget');
+        const chatUsername = document.getElementById('chat-username');
+        const chatMessages = document.getElementById('chat-messages');
+        
+        console.log('Chat elements found:', {
+            chatWidget: !!chatWidget,
+            chatUsername: !!chatUsername,
+            chatMessages: !!chatMessages
+        }); // Debug log
+        
+        if (chatWidget && chatUsername && chatMessages) {
+            // Set the chat user
+            chatUsername.innerHTML = `<i class="fa-solid fa-comment"></i> Chat with ${this.escapeHtml(username)}`;
+            
+            // Clear previous messages (for now - later you can load actual chat history)
+            chatMessages.innerHTML = '<div class="chat-message received">Start your conversation with ' + this.escapeHtml(username) + '!</div>';
+            
+            // Show the chat widget
+            chatWidget.style.display = 'flex';
+            
+            // Focus on the input
+            const chatInput = document.getElementById('chat-input');
+            if (chatInput) chatInput.focus();
+            
+            console.log('Chat widget should now be visible'); // Debug log
+        } else {
+            console.error('Chat elements not found!');
+        }
+    }
+
+    closeChatWidget() {
+        const chatWidget = document.getElementById('chat-widget');
+        if (chatWidget) {
+            chatWidget.style.display = 'none';
+        }
+    }
+
+    initializeChatEventListeners() {
+        console.log('Initializing chat event listeners...'); // Debug log
+        
+        // Close chat button
+        const closeBtn = document.querySelector('.chat-close');
+        console.log('Close button found:', !!closeBtn); // Debug log
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.closeChatWidget());
+        }
+
+        // Send message functionality
+        const sendBtn = document.getElementById('chat-send');
+        const chatInput = document.getElementById('chat-input');
+        
+        console.log('Send button and input found:', !!sendBtn, !!chatInput); // Debug log
+        
+        if (sendBtn && chatInput) {
+            sendBtn.addEventListener('click', () => this.sendChatMessage());
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.sendChatMessage();
+                }
+            });
+        }
+        
+        console.log('Chat event listeners initialized'); // Debug log
+    }
+
+    // Test function to manually open chat (for debugging)
+    testOpenChat() {
+        console.log('Test: Opening chat with test user...');
+        this.openChatWithUser('TestUser');
+    }
+
+    sendChatMessage() {
+        const chatInput = document.getElementById('chat-input');
+        const chatMessages = document.getElementById('chat-messages');
+        
+        if (chatInput && chatMessages && chatInput.value.trim()) {
+            const message = chatInput.value.trim();
+            
+            // Create message element
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'chat-message sent';
+            messageDiv.innerHTML = `
+                ${this.escapeHtml(message)}
+                <div class="chat-message-time">${new Date().toLocaleTimeString()}</div>
+            `;
+            
+            // Add to chat
+            chatMessages.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            // Clear input
+            chatInput.value = '';
+            
+            // TODO: Send to backend via WebSocket or API
+            console.log('Message to send:', message);
+        }
     }
 
     renderCategories() {
