@@ -206,18 +206,13 @@ func (c *Client) ReadPump() {
 func (c *Client) WritePump() {
 	defer c.Conn.Close()
 
-	for {
-		select {
-		case message, ok := <-c.Send:
-			if !ok {
-				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
-				return
-			}
-
-			if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
-				log.Printf("error: %v", err)
-				return
-			}
+	for message := range c.Send {
+		if err := c.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
+			log.Printf("error: %v", err)
+			return
 		}
 	}
+	
+	// Channel was closed, send close message
+	c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 }
