@@ -5,6 +5,9 @@ class ForumApp {
         this.categories = [];
         this.posts = [];
         this.selectedPostId = null;
+        this.websocket = null;
+        this.isWebSocketConnected = false;
+        this.currentChatUser = null;
         
         this.init();
     }
@@ -289,6 +292,10 @@ class ForumApp {
             this.hideLoading();
             // Initialize chat event listeners after dashboard is loaded
             this.initializeChatEventListeners();
+            // Connect WebSocket for real-time features
+            this.connectWebSocket();
+            // Request notification permission
+            this.requestNotificationPermission();
         }
     }
 
@@ -299,6 +306,286 @@ class ForumApp {
                 usernameElement.textContent = this.currentUser.nickname;
             }
         }
+    }
+
+    // WebSocket Connection Methods
+    connectWebSocket() {
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+            console.log('WebSocket already connected');
+            return;
+        }
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        
+        console.log('Connecting to WebSocket:', wsUrl);
+        
+        this.websocket = new WebSocket(wsUrl);
+        
+        this.websocket.onopen = () => {
+            console.log('WebSocket connected');
+            this.isWebSocketConnected = true;
+        };
+        
+        this.websocket.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                this.handleWebSocketMessage(message);
+            } catch (error) {
+                console.error('Error parsing WebSocket message:', error);
+            }
+        };
+        
+        this.websocket.onclose = (event) => {
+            console.log('WebSocket disconnected:', event.code, event.reason);
+            this.isWebSocketConnected = false;
+            
+            // Attempt to reconnect after 3 seconds if not intentional
+            if (event.code !== 1000) {
+                setTimeout(() => {
+                    console.log('Attempting to reconnect WebSocket...');
+                    this.connectWebSocket();
+                }, 3000);
+            }
+        };
+        
+        this.websocket.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            this.isWebSocketConnected = false;
+        };
+    }
+
+    disconnectWebSocket() {
+        if (this.websocket) {
+            this.websocket.close(1000, 'User logged out');
+            this.websocket = null;
+            this.isWebSocketConnected = false;
+        }
+    }
+
+    handleWebSocketMessage(message) {
+        console.log('Received WebSocket message:', message);
+        console.log('Current user:', this.currentUser?.nickname);
+        
+        switch (message.type) {
+            case 'chat_message':
+                console.log('Processing chat message...');
+                this.displayChatMessage(message);
+                break;
+            case 'user_online':
+                this.handleUserOnline(message);
+                break;
+            case 'user_offline':
+                this.handleUserOffline(message);
+                break;
+            default:
+                console.log('Unknown message type:', message.type);
+        }
+    }
+
+    sendWebSocketMessage(message) {
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+            this.websocket.send(JSON.stringify(message));
+            return true;
+        } else {
+            console.error('WebSocket not connected');
+            this.showToast('Connection lost. Please refresh the page.', 'error');
+            return false;
+        }
+    }
+
+    displayChatMessage(message) {
+        console.log('displayChatMessage called with:', message);
+        
+        const chatMessages = document.getElementById('chat-messages');
+        const chatWidget = document.getElementById('chat-widget');
+        
+        if (!chatMessages) {
+            console.error('Chat messages element not found');
+            return;
+        }
+        
+        const isFromCurrentUser = message.from === this.currentUser?.nickname;
+        const isToCurrentUser = message.to === this.currentUser?.nickname;
+        
+        console.log('Message analysis:', {
+            from: message.from,
+            to: message.to,
+            currentUser: this.currentUser?.nickname,
+            isFromCurrentUser,
+            isToCurrentUser
+        });
+        
+        // If this is an incoming message (not from current user but to current user)
+        if (!isFromCurrentUser && isToCurrentUser) {
+            console.log('Processing incoming message...');
+            
+            // Show notification
+            this.showChatNotification(message);
+            
+            // Auto-open chat if it's not open
+            if (!chatWidget || chatWidget.style.display === 'none') {
+                console.log('Auto-opening chat for new message');
+                this.autoOpenChatForNewMessage(message);
+                return; // Let the auto-open handle message display
+            }
+        }
+        
+        // Only display in chat if chat widget exists and is visible
+        if (!chatWidget || chatWidget.style.display === 'none') {
+            console.log('Chat widget not visible, skipping message display');
+            return;
+        }
+        
+        // Check if this message is for the current open chat
+        if (this.currentChatUser && 
+            (message.from === this.currentChatUser || message.to === this.currentChatUser ||
+             (isFromCurrentUser && message.to === this.currentChatUser))) {
+            
+            console.log('Adding message to current chat');
+            
+            const messageDiv = document.createElement('div');
+            
+            messageDiv.className = `chat-message ${isFromCurrentUser ? 'sent' : 'received'}`;
+            messageDiv.innerHTML = `
+                ${this.escapeHtml(message.content)}
+                <div class="chat-message-time">${new Date(message.timestamp).toLocaleTimeString()}</div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        } else {
+            console.log('Message not for current chat user');
+        }
+    }
+
+    showChatNotification(message) {
+        // Show browser notification if permission granted
+        if (Notification.permission === 'granted') {
+            const notification = new Notification(`New message from ${message.from}`, {
+                body: message.content,
+                icon: '/favicon.ico', // You can add a favicon
+                tag: `chat-${message.from}`, // Replace previous notifications from same user
+            });
+            
+            // Auto close after 5 seconds
+            setTimeout(() => {
+                notification.close();
+            }, 5000);
+            
+            // Click notification to open chat
+            notification.onclick = () => {
+                this.openChatWithUser(message.from);
+                window.focus();
+                notification.close();
+            };
+        }
+        
+        // Show in-app notification toast
+        this.showToast(`💬 New message from ${message.from}`, 'info', 4000);
+        
+        // Add visual indicator to the sender in online users list
+        this.addMessageIndicatorToUser(message.from);
+    }
+
+    autoOpenChatForNewMessage(message) {
+        console.log('Auto-opening chat for new message from:', message.from);
+        
+        // Open chat with the sender
+        this.openChatWithUser(message.from);
+        
+        // Add the message to the chat
+        const chatMessages = document.getElementById('chat-messages');
+        if (chatMessages) {
+            // Clear the default welcome message
+            chatMessages.innerHTML = '';
+            
+            // Add the received message
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'chat-message received';
+            messageDiv.innerHTML = `
+                ${this.escapeHtml(message.content)}
+                <div class="chat-message-time">${new Date(message.timestamp).toLocaleTimeString()}</div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
+        // Show a notification that chat was auto-opened
+        this.showToast(`📱 Chat opened with ${message.from}`, 'success', 3000);
+    }
+
+    addMessageIndicatorToUser(username) {
+        // Find the user in the online users list
+        const activeUsersList = document.getElementById('active-users-list');
+        if (!activeUsersList) return;
+        
+        const userElements = activeUsersList.querySelectorAll('.active-user');
+        userElements.forEach(userElement => {
+            if (userElement.textContent.trim() === username) {
+                // Add a message indicator if it doesn't exist
+                let indicator = userElement.querySelector('.message-indicator');
+                if (!indicator) {
+                    indicator = document.createElement('span');
+                    indicator.className = 'message-indicator';
+                    indicator.textContent = '1';
+                    userElement.appendChild(indicator);
+                } else {
+                    // Increment the count
+                    const count = parseInt(indicator.textContent) || 0;
+                    indicator.textContent = (count + 1).toString();
+                }
+            }
+        });
+    }
+
+    removeMessageIndicatorFromUser(username) {
+        // Find the user in the online users list and remove indicator
+        const activeUsersList = document.getElementById('active-users-list');
+        if (!activeUsersList) return;
+        
+        const userElements = activeUsersList.querySelectorAll('.active-user');
+        userElements.forEach(userElement => {
+            if (userElement.textContent.replace(/\d+$/, '').trim() === username) {
+                const indicator = userElement.querySelector('.message-indicator');
+                if (indicator) {
+                    indicator.remove();
+                }
+            }
+        });
+    }
+
+    requestNotificationPermission() {
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission().then(permission => {
+                console.log('Notification permission:', permission);
+            });
+        }
+    }
+
+    handleUserOnline(message) {
+        console.log('User came online:', message.user);
+        // Refresh the active users list
+        this.loadActiveUsers();
+    }
+
+    handleUserOffline(message) {
+        console.log('User went offline:', message.user);
+        // Refresh the active users list
+        this.loadActiveUsers();
+    }
+
+    handleUserOnline(message) {
+        console.log(`User ${message.username} came online`);
+        // Refresh the active users list
+        this.loadActiveUsers();
+    }
+
+    handleUserOffline(message) {
+        console.log(`User ${message.username} went offline`);
+        // Refresh the active users list
+        this.loadActiveUsers();
     }
 
     async loadActiveUsers() {
@@ -381,10 +668,16 @@ class ForumApp {
         }); // Debug log
         
         if (chatWidget && chatUsername && chatMessages) {
-            // Set the chat user
+            // Set the current chat user
+            this.currentChatUser = username;
+            
+            // Remove message indicator for this user
+            this.removeMessageIndicatorFromUser(username);
+            
+            // Set the chat user in UI
             chatUsername.innerHTML = `<i class="fa-solid fa-comment"></i> Chat with ${this.escapeHtml(username)}`;
             
-            // Clear previous messages (for now - later you can load actual chat history)
+            // Clear previous messages 
             chatMessages.innerHTML = '<div class="chat-message received">Start your conversation with ' + this.escapeHtml(username) + '!</div>';
             
             // Show the chat widget
@@ -404,6 +697,7 @@ class ForumApp {
         const chatWidget = document.getElementById('chat-widget');
         if (chatWidget) {
             chatWidget.style.display = 'none';
+            this.currentChatUser = null; // Clear current chat user
         }
     }
 
@@ -445,28 +739,32 @@ class ForumApp {
         const chatInput = document.getElementById('chat-input');
         const chatMessages = document.getElementById('chat-messages');
         
-        if (chatInput && chatMessages && chatInput.value.trim()) {
-            const message = chatInput.value.trim();
+        if (chatInput && chatMessages && chatInput.value.trim() && this.currentChatUser) {
+            const messageContent = chatInput.value.trim();
             
-            // Create message element
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'chat-message sent';
-            messageDiv.innerHTML = `
-                ${this.escapeHtml(message)}
-                <div class="chat-message-time">${new Date().toLocaleTimeString()}</div>
-            `;
+            // Create WebSocket message
+            const message = {
+                type: 'chat_message',
+                to: this.currentChatUser,
+                content: messageContent,
+                timestamp: new Date().toISOString()
+            };
             
-            // Add to chat
-            chatMessages.appendChild(messageDiv);
-            
-            // Scroll to bottom
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            
-            // Clear input
-            chatInput.value = '';
-            
-            // TODO: Send to backend via WebSocket or API
-            console.log('Message to send:', message);
+            // Send via WebSocket
+            if (this.sendWebSocketMessage(message)) {
+                // Only add to UI locally if WebSocket send was successful
+                // The actual message will be received back through WebSocket
+                
+                // Clear input
+                chatInput.value = '';
+                
+                console.log('Message sent via WebSocket:', message);
+            } else {
+                // Fallback: show error message
+                this.showToast('Failed to send message. Please check your connection.', 'error');
+            }
+        } else if (!this.currentChatUser) {
+            console.error('No chat user selected');
         }
     }
 
@@ -853,7 +1151,7 @@ class ForumApp {
         document.getElementById('loading').style.display = 'none';
     }
 
-    showToast(message, type = 'info') {
+    showToast(message, type = 'info', timeout = 4000) {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.textContent = message;
@@ -862,7 +1160,7 @@ class ForumApp {
 
         setTimeout(() => {
             toast.remove();
-        }, 4000);
+        }, timeout);
     }
 
     getCookie(name) {
@@ -899,19 +1197,26 @@ class ForumApp {
         return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
     }
     clearState() {
-                        // Clear all state
-                this.currentUser = null;
-                this.categories = [];
-                this.posts = [];
-                this.selectedPostId = null;
-                
-                // Clear any displayed content
-                document.getElementById('posts-container').innerHTML = '';
-                document.getElementById('my-posts-container').innerHTML = '';
-                
-                // Reset username display
-                document.getElementById('username-display').textContent = '';
-            };
+        // Clear all state
+        this.currentUser = null;
+        this.categories = [];
+        this.posts = [];
+        this.selectedPostId = null;
+        this.currentChatUser = null;
+        
+        // Disconnect WebSocket
+        this.disconnectWebSocket();
+        
+        // Clear any displayed content
+        document.getElementById('posts-container').innerHTML = '';
+        document.getElementById('my-posts-container').innerHTML = '';
+        
+        // Reset username display
+        document.getElementById('username-display').textContent = '';
+        
+        // Close chat widget
+        this.closeChatWidget();
+    }
 }
 
 

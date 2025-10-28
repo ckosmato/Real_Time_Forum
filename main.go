@@ -9,6 +9,7 @@ import (
 	"real-time-forum/handlers"
 	"real-time-forum/repositories"
 	"real-time-forum/services"
+	"real-time-forum/utils"
 	"strings"
 	"time"
 
@@ -26,10 +27,10 @@ type Dependencies struct {
 }
 
 type Handlers struct {
-	AuthHandler       *handlers.AuthHandler
-	DashboardHandler  *handlers.DashboardHandler
-	PostHandler       *handlers.PostHandler
-	CommentsHandler   *handlers.CommentsHandler
+	AuthHandler      *handlers.AuthHandler
+	DashboardHandler *handlers.DashboardHandler
+	PostHandler      *handlers.PostHandler
+	CommentsHandler  *handlers.CommentsHandler
 }
 
 func main() {
@@ -42,11 +43,14 @@ func main() {
 
 	// Setup dependencies and handlers
 	deps := SetupDependencies(db)
-	handlers := SetupHandlers(deps)
+	handlerInstances := SetupHandlers(deps)
+
+	// Initialize WebSocket hub
+	handlers.InitHub()
 
 	// Setup routes
 	mux := http.NewServeMux()
-	Configure(mux, handlers)
+	Configure(mux, handlerInstances, deps)
 
 	// Start background tasks
 	go BackgroundTasks(deps.SessionService, deps.UserService)
@@ -57,16 +61,45 @@ func main() {
 	if err := http.ListenAndServe(port, mux); err != nil {
 		panic(err)
 	}
-
 }
 
-func Configure(mux *http.ServeMux, h *Handlers) {
+func Configure(mux *http.ServeMux, h *Handlers, deps *Dependencies) {
 	// Add logging middleware
 	loggingHandler := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("%s %s %s\n", r.Method, r.URL.Path, r.Proto)
 			next.ServeHTTP(w, r)
 		})
+	}
+
+	// Authentication middleware for WebSocket
+	authMiddleware := func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			// Get session ID from cookie or header
+			sessionID := ""
+			if cookie, err := r.Cookie("session_id"); err == nil {
+				sessionID = cookie.Value
+			}
+			if sessionID == "" {
+				sessionID = r.Header.Get("X-Session-ID")
+			}
+
+			if sessionID == "" {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			// Get user from session
+			user, err := deps.UserService.GetUserBySessionID(r.Context(), sessionID)
+			if err != nil || user == nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			// Add user to context
+			ctx := context.WithValue(r.Context(), utils.ContextUser, user)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		}
 	}
 
 	// API routes first (more specific patterns)
@@ -80,6 +113,10 @@ func Configure(mux *http.ServeMux, h *Handlers) {
 	mux.Handle("/post", loggingHandler(http.HandlerFunc(h.PostHandler.ViewPost)))
 	mux.Handle("/post/createcomment", loggingHandler(http.HandlerFunc(h.CommentsHandler.CreateComment)))
 	mux.Handle("/category/", loggingHandler(http.HandlerFunc(h.DashboardHandler.PostsByCategory)))
+
+	// WebSocket routes with authentication
+	mux.Handle("/ws", loggingHandler(authMiddleware(handlers.HandleWebSocket)))
+	mux.Handle("/ws/online-users", loggingHandler(authMiddleware(handlers.GetOnlineUsers)))
 
 	// Static files
 	mux.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
@@ -137,13 +174,12 @@ func SetupDependencies(db *sql.DB) *Dependencies {
 func SetupHandlers(deps *Dependencies) *Handlers {
 	// Handlers
 	return &Handlers{
-		AuthHandler:       handlers.NewAuthHandler(deps.AuthService, deps.SessionService),
-		CommentsHandler:   handlers.NewCommentsHandler(deps.PostService, deps.CommentService, deps.CategoriesService, deps.UserService),
-		DashboardHandler:  handlers.NewDashboardHandler(deps.PostService, deps.CategoriesService, deps.UserService),
-		PostHandler:       handlers.NewPostHandler(deps.PostService, deps.CategoriesService, deps.CommentService, deps.UserService),
+		AuthHandler:      handlers.NewAuthHandler(deps.AuthService, deps.SessionService),
+		CommentsHandler:  handlers.NewCommentsHandler(deps.PostService, deps.CommentService, deps.CategoriesService, deps.UserService),
+		DashboardHandler: handlers.NewDashboardHandler(deps.PostService, deps.CategoriesService, deps.UserService),
+		PostHandler:      handlers.NewPostHandler(deps.PostService, deps.CategoriesService, deps.CommentService, deps.UserService),
 	}
 }
-
 
 func BackgroundTasks(sessionService services.SessionService, userService services.UserService) {
 	ticker := time.NewTicker(5 * time.Minute)

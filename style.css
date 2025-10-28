@@ -399,6 +399,7 @@ body {
   border-left: 3px solid #4caf50;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
   transition: all 0.3s ease;
   cursor: pointer;
@@ -408,6 +409,32 @@ body {
 #active-users-list .active-user:hover {
   background: #333;
   transform: translateX(5px);
+}
+
+.message-indicator {
+  background: #ff2770;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: bold;
+  border-radius: 50%;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: pulse 1.5s infinite;
+  margin-left: auto;
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.7; 
+    transform: scale(1.1);
+  }
 }
 
 #active-users-list .active-user::before {
