@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -37,11 +36,11 @@ func (h *WebSocketHandler) WebSocket(w http.ResponseWriter, r *http.Request) {
 	h.chatService.Hub.Register <- client
 
 	// Start read/write pumps
-	go h.readPump(client, r.Context())
+	go h.readPump(client)
 	go h.writePump(client)
 }
 
-func (h *WebSocketHandler) readPump(c *models.Client, ctx context.Context) {
+func (h *WebSocketHandler) readPump(c *models.Client) {
 	defer func() {
 		h.chatService.Hub.Unregister <- c
 		c.Conn.Close()
@@ -61,7 +60,7 @@ func (h *WebSocketHandler) readPump(c *models.Client, ctx context.Context) {
 		}
 
 		msg.From = c.Username
-		h.chatService.ProcessMessage(ctx, &msg)
+		h.chatService.ProcessMessage(&msg)
 	}
 }
 

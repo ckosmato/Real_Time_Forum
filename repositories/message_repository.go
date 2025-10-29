@@ -15,18 +15,18 @@ func NewMessageRepository(db *sql.DB) *MessageRepository {
 }
 
 // SaveMessage saves a chat message to the database
-func (r *MessageRepository) SaveMessage(ctx context.Context, message *models.ChatMessage) error {
+func (r *MessageRepository) SaveMessage(ctx context.Context, message *models.Message) error {
 	query := `
 		INSERT INTO messages (from_user, to_user, body, created_at)
 		VALUES (?, ?, ?, ?)
 	`
 
-	_, err := r.db.ExecContext(ctx, query, message.FromUser, message.ToUser, message.Body, message.CreatedAt)
+	_, err := r.db.ExecContext(ctx, query, message.From, message.To, message.Content, message.Timestamp)
 	return err
 }
 
 // GetMessages retrieves chat messages between two users
-func (r *MessageRepository) GetMessages(ctx context.Context, user1, user2 string, limit int) ([]models.ChatMessage, error) {
+func (r *MessageRepository) GetMessages(ctx context.Context, user1, user2 string, limit int) ([]models.Message, error) {
 	query := `
 		SELECT id, from_user, to_user, body, created_at
 		FROM messages 
@@ -41,10 +41,10 @@ func (r *MessageRepository) GetMessages(ctx context.Context, user1, user2 string
 	}
 	defer rows.Close()
 
-	var messages []models.ChatMessage
+	var messages []models.Message
 	for rows.Next() {
-		var msg models.ChatMessage
-		err := rows.Scan(&msg.ID, &msg.FromUser, &msg.ToUser, &msg.Body, &msg.CreatedAt)
+		var msg models.Message
+		err := rows.Scan(&msg.ID, &msg.From, &msg.To, &msg.Content, &msg.Timestamp)
 		if err != nil {
 			return nil, err
 		}
@@ -55,7 +55,7 @@ func (r *MessageRepository) GetMessages(ctx context.Context, user1, user2 string
 }
 
 // GetRecentConversations gets the most recent conversations for a user
-func (r *MessageRepository) GetRecentConversations(ctx context.Context, userID string, limit int) ([]models.ChatMessage, error) {
+func (r *MessageRepository) GetRecentConversations(ctx context.Context, userID string, limit int) ([]models.Message, error) {
 	query := `
 		SELECT id, from_user, to_user, body, created_at
 		FROM messages m1
@@ -77,10 +77,10 @@ func (r *MessageRepository) GetRecentConversations(ctx context.Context, userID s
 	}
 	defer rows.Close()
 
-	var messages []models.ChatMessage
+	var messages []models.Message
 	for rows.Next() {
-		var msg models.ChatMessage
-		err := rows.Scan(&msg.ID, &msg.FromUser, &msg.ToUser, &msg.Body, &msg.CreatedAt)
+		var msg models.Message
+		err := rows.Scan(&msg.ID, &msg.From, &msg.To, &msg.Content, &msg.Timestamp)
 		if err != nil {
 			return nil, err
 		}
