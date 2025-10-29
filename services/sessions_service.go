@@ -45,10 +45,10 @@ func (s *SessionService) GenerateSession(ctx context.Context, user *models.User)
 	return session, nil
 }
 
-func (s *SessionService) ExpireSession(ctx context.Context, sessionID string) error {
-	err := s.repo.DeleteSession(ctx, sessionID)
+func (s *SessionService) ExpireSession(ctx context.Context, UserID string) error {
+	err := s.repo.DeleteSession(ctx, UserID)
 	if err != nil {
-		log.Printf("ExpireSession: failed to expire session %s: %v", sessionID, err)
+		log.Printf("ExpireSession: failed to expire session for user %s: %v", UserID, err)
 		return errors.New("failed to expire session")
 	}
 

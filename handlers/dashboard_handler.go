@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"real-time-forum/models"
 	"real-time-forum/services"
 	"real-time-forum/utils"
 	"strings"
@@ -52,15 +51,7 @@ func (h *DashboardHandler) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Try to get user from session, but don't fail if not found
-	var user *models.User
-	sessionID := r.Header.Get("X-Session-ID")
-	if sessionID != "" {
-		user, err = h.userService.GetUserBySessionID(r.Context(), sessionID)
-		if err != nil {
-			log.Printf("Home: failed to get user from session (continuing without user): %v", err)
-			user = nil // Allow viewing posts without being logged in
-		}
-	}
+	user := utils.GetUserFromContext(r.Context())
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -116,18 +107,8 @@ func (h *DashboardHandler) PostsByCategory(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Try to get user from session header, but don't fail if not found
-	var user *models.User
-	sessionID := r.Header.Get("X-Session-ID")
-	if sessionID != "" {
-		user, err = h.userService.GetUserBySessionID(r.Context(), sessionID)
-		if err != nil {
-			log.Printf("PostsByCategory: failed to get user from session (continuing without user): %v", err)
-			user = nil // Allow viewing posts without being logged in
-		}
-	} else {
-		// Fallback to context (if set by middleware)
-		user = utils.GetUserFromContext(r.Context())
-	}
+	user := utils.GetUserFromContext(r.Context())
+
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -147,14 +128,7 @@ func (h *DashboardHandler) UserPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.userService.GetUserBySessionID(r.Context(), r.Header.Get("X-Session-ID"))
-	if err != nil {
-		log.Printf("UserPosts: failed to get user from session: %v", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
-		return
-	}
+	user := utils.GetUserFromContext(r.Context())
 
 	posts, err := h.postService.GetUserPosts(r.Context(), user.ID)
 	if err != nil {

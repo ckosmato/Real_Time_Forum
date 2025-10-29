@@ -904,6 +904,7 @@ class ForumApp {
             const response = await fetch(url, { 
                 credentials: 'same-origin',
                 headers: {
+                    'X-Session-ID': this.getCookie('session_id'),
                     'Accept': 'application/json'
                 }
             });
@@ -996,6 +997,9 @@ class ForumApp {
             const response = await fetch('/post/createcomment', {
                 method: 'POST',
                 credentials: 'include',
+                headers: {
+                    'X-Session-ID': this.getCookie('session_id')
+                },
                 body: formData
             });
 
@@ -1046,6 +1050,9 @@ class ForumApp {
             const response = await fetch('/createpost', {
                 method: 'POST',
                 credentials: 'same-origin',
+                headers: {
+                    'X-Session-ID': this.getCookie('session_id')
+                },
                 body: formData
             });
 

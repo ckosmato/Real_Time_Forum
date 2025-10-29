@@ -7,13 +7,13 @@ import (
 	"log"
 	"net/http"
 	"real-time-forum/handlers"
+	"real-time-forum/middleware"
 	"real-time-forum/repositories"
 	"real-time-forum/services"
-	"real-time-forum/utils"
 	"strings"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3" // Add this import
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type Dependencies struct {
@@ -33,6 +33,11 @@ type Handlers struct {
 	CommentsHandler  *handlers.CommentsHandler
 }
 
+type Middlewares struct {
+	LoggingMiddleware *middleware.LoggingMiddleware
+	AuthMiddleware    *middleware.AuthMiddleware
+}
+
 func main() {
 	// Initialize database
 	db, err := sql.Open("sqlite3", "./database/forum.db")
@@ -44,13 +49,14 @@ func main() {
 	// Setup dependencies and handlers
 	deps := SetupDependencies(db)
 	handlerInstances := SetupHandlers(deps)
+	middlewareInstances := SetupMiddleware(deps)
 
 	// Initialize WebSocket hub
 	handlers.InitHub()
 
 	// Setup routes
 	mux := http.NewServeMux()
-	Configure(mux, handlerInstances, deps)
+	Configure(mux, handlerInstances, deps, middlewareInstances)
 
 	// Start background tasks
 	go BackgroundTasks(deps.SessionService, deps.UserService)
@@ -62,61 +68,24 @@ func main() {
 		panic(err)
 	}
 }
+	
+func Configure(mux *http.ServeMux, h *Handlers, deps *Dependencies, m *Middlewares) {
 
-func Configure(mux *http.ServeMux, h *Handlers, deps *Dependencies) {
-	// Add logging middleware
-	loggingHandler := func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Printf("%s %s %s\n", r.Method, r.URL.Path, r.Proto)
-			next.ServeHTTP(w, r)
-		})
-	}
+	// API routes
+	mux.Handle("/register", m.LoggingMiddleware.Log(http.HandlerFunc(h.AuthHandler.Register)))
+	mux.Handle("/login", m.LoggingMiddleware.Log(http.HandlerFunc(h.AuthHandler.Login)))
+	mux.Handle("/logout", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.AuthHandler.LogOut))))
+	mux.Handle("/dashboard", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.DashboardHandler.Home))))
+	mux.Handle("/dashboard/my-posts", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.DashboardHandler.UserPosts))))
+	mux.Handle("/dashboard/active-users", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.DashboardHandler.ActiveUsers))))
+	mux.Handle("/createpost", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.PostHandler.CreatePost))))
+	mux.Handle("/post", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.PostHandler.ViewPost))))
+	mux.Handle("/post/createcomment", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.CommentsHandler.CreateComment))))
+	mux.Handle("/category/", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.DashboardHandler.PostsByCategory))))
 
-	// Authentication middleware for WebSocket
-	authMiddleware := func(next http.HandlerFunc) http.HandlerFunc {
-		return func(w http.ResponseWriter, r *http.Request) {
-			// Get session ID from cookie or header
-			sessionID := ""
-			if cookie, err := r.Cookie("session_id"); err == nil {
-				sessionID = cookie.Value
-			}
-			if sessionID == "" {
-				sessionID = r.Header.Get("X-Session-ID")
-			}
-
-			if sessionID == "" {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-
-			// Get user from session
-			user, err := deps.UserService.GetUserBySessionID(r.Context(), sessionID)
-			if err != nil || user == nil {
-				http.Error(w, "Unauthorized", http.StatusUnauthorized)
-				return
-			}
-
-			// Add user to context
-			ctx := context.WithValue(r.Context(), utils.ContextUser, user)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		}
-	}
-
-	// API routes first (more specific patterns)
-	mux.Handle("/register", loggingHandler(http.HandlerFunc(h.AuthHandler.Register)))
-	mux.Handle("/login", loggingHandler(http.HandlerFunc(h.AuthHandler.Login)))
-	mux.Handle("/logout", loggingHandler(http.HandlerFunc(h.AuthHandler.LogOut)))
-	mux.Handle("/dashboard", loggingHandler(http.HandlerFunc(h.DashboardHandler.Home)))
-	mux.Handle("/dashboard/my-posts", loggingHandler(http.HandlerFunc(h.DashboardHandler.UserPosts)))
-	mux.Handle("/dashboard/active-users", loggingHandler(http.HandlerFunc(h.DashboardHandler.ActiveUsers)))
-	mux.Handle("/createpost", loggingHandler(http.HandlerFunc(h.PostHandler.CreatePost)))
-	mux.Handle("/post", loggingHandler(http.HandlerFunc(h.PostHandler.ViewPost)))
-	mux.Handle("/post/createcomment", loggingHandler(http.HandlerFunc(h.CommentsHandler.CreateComment)))
-	mux.Handle("/category/", loggingHandler(http.HandlerFunc(h.DashboardHandler.PostsByCategory)))
-
-	// WebSocket routes with authentication
-	mux.Handle("/ws", loggingHandler(authMiddleware(handlers.HandleWebSocket)))
-	mux.Handle("/ws/online-users", loggingHandler(authMiddleware(handlers.GetOnlineUsers)))
+	// WebSocket routes
+	mux.Handle("/ws", m.AuthMiddleware.Authorize(m.LoggingMiddleware.Log(http.HandlerFunc(handlers.HandleWebSocket))))
+	mux.Handle("/ws/online-users", m.AuthMiddleware.Authorize(m.LoggingMiddleware.Log(http.HandlerFunc(handlers.GetOnlineUsers))))
 
 	// Static files
 	mux.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
@@ -145,6 +114,8 @@ func Configure(mux *http.ServeMux, h *Handlers, deps *Dependencies) {
 }
 
 func SetupDependencies(db *sql.DB) *Dependencies {
+
+
 	// Repositories
 	userRepo := repositories.NewUserRepository(db)
 	sessionRepo := repositories.NewSessionRepository(db)
@@ -155,7 +126,6 @@ func SetupDependencies(db *sql.DB) *Dependencies {
 	// Services
 	userService := services.NewUserService(*userRepo)
 	authService := services.NewAuthService(*userRepo)
-
 	sessionService := services.NewSessionService(*sessionRepo)
 	postService := services.NewPostService(*postRepo)
 	categoriesService := services.NewCategoriesService(*categoriesRepo)
@@ -174,13 +144,19 @@ func SetupDependencies(db *sql.DB) *Dependencies {
 func SetupHandlers(deps *Dependencies) *Handlers {
 	// Handlers
 	return &Handlers{
-		AuthHandler:      handlers.NewAuthHandler(deps.AuthService, deps.SessionService),
+		AuthHandler:      handlers.NewAuthHandler(deps.AuthService,deps.SessionService),
 		CommentsHandler:  handlers.NewCommentsHandler(deps.PostService, deps.CommentService, deps.CategoriesService, deps.UserService),
 		DashboardHandler: handlers.NewDashboardHandler(deps.PostService, deps.CategoriesService, deps.UserService),
 		PostHandler:      handlers.NewPostHandler(deps.PostService, deps.CategoriesService, deps.CommentService, deps.UserService),
 	}
 }
 
+func SetupMiddleware(deps *Dependencies) *Middlewares {
+	return &Middlewares{
+		LoggingMiddleware: middleware.NewLoggingMiddleware(),
+		AuthMiddleware:    middleware.NewAuthMiddleware(deps.UserService),
+	}
+}
 func BackgroundTasks(sessionService services.SessionService, userService services.UserService) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()

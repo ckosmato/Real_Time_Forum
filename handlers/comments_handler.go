@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"real-time-forum/models"
 	"real-time-forum/services"
+	"real-time-forum/utils"
 	"strings"
 )
 
@@ -34,25 +35,16 @@ func (h *CommentsHandler) CreateComment(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Get user from session cookie
-	sessionCookie, err := r.Cookie("session_id")
-	if err != nil {
-		log.Printf("CreateComment: no session cookie found: %v", err)
+	// Get user from context
+	user := utils.GetUserFromContext(r.Context())
+	if user == nil {
+		log.Printf("CreateComment: no user found in context")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Not logged in"})
 		return
 	}
 
-	// Validate session and get user
-	user, err := h.userService.GetUserBySessionID(r.Context(), sessionCookie.Value)
-	if err != nil {
-		log.Printf("CreateComment: invalid session: %v", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid session"})
-		return
-	}
 
 	log.Printf("CreateComment: authenticated user ID='%s', Nickname='%s'", user.ID, user.Nickname)
 

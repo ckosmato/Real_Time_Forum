@@ -5,13 +5,14 @@ import (
 	"net/http"
 	"real-time-forum/models"
 	"real-time-forum/services"
+	"real-time-forum/utils"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
 type AuthHandler struct {
-	authService    services.AuthService
+	authService services.AuthService
 	sessionService services.SessionService
 }
 
@@ -22,7 +23,7 @@ func NewAuthHandler(as services.AuthService, ss services.SessionService) *AuthHa
 	}
 }
 
-// -------- Helper functions --------
+
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -255,12 +256,7 @@ func (h *AuthHandler) LogOut(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID := r.Header.Get("X-Session-ID")
-	if sessionID == "" {
-		http.Error(w, "Session ID is required", http.StatusBadRequest)
-		return
-	}
-
+	user := utils.GetUserFromContext(r.Context())
 	// Expire session cookie
 	http.SetCookie(w, &http.Cookie{
 		Name:   "session_id",
@@ -268,7 +264,7 @@ func (h *AuthHandler) LogOut(w http.ResponseWriter, r *http.Request) {
 		Path:   "/",
 		MaxAge: -1,
 	})
-	err := h.sessionService.ExpireSession(r.Context(), sessionID)
+	err := h.sessionService.ExpireSession(r.Context(), user.ID)
 	if err != nil {
 		http.Error(w, "Failed to log out", http.StatusInternalServerError)
 		return

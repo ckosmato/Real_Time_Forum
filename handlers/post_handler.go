@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"real-time-forum/models"
 	"real-time-forum/services"
+	"real-time-forum/utils"
 )
 
 type PostHandler struct {
@@ -25,6 +27,7 @@ func NewPostHandler(ps services.PostService, cs services.CategoriesService, coms
 }
 
 func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
+	fmt.Print("here")
 	switch r.Method {
 	case http.MethodGet:
 		categories, err := h.categoriesService.GetAllCategories(r.Context())
@@ -43,29 +46,9 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		})
 
 	case http.MethodPost:
-		// Get user from session cookie
-		sessionCookie, err := r.Cookie("session_id")
-		if err != nil {
-			log.Printf("CreatePost: no session cookie found: %v", err)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Not logged in"})
-			return
-		}
 
 		// Validate session and get user
-		user, err := h.userService.GetUserBySessionID(r.Context(), sessionCookie.Value)
-		if err != nil {
-			log.Printf("CreatePost: invalid session: %v", err)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Invalid session"})
-			return
-		}
-
-		log.Printf("CreatePost: authenticated user ID='%s', Nickname='%s'", user.ID, user.Nickname)
-
-		log.Printf("CreatePost: authenticated user ID=%s, nickname=%s", user.ID, user.Nickname)
+		user := utils.GetUserFromContext(r.Context())
 
 		if err := r.ParseMultipartForm(20 << 20); err != nil {
 			log.Printf("CreatePost: invalid form: %v", err)
@@ -116,6 +99,7 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PostHandler) ViewPost(w http.ResponseWriter, r *http.Request) {
+	fmt.Print("here")
 	if r.Method != http.MethodGet {
 		log.Printf("ViewPost: invalid method %s", r.Method)
 		w.Header().Set("Content-Type", "application/json")
@@ -124,21 +108,7 @@ func (h *PostHandler) ViewPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get user from session cookie
-	var user *models.User
-	sessionCookie, err := r.Cookie("session_id")
-	if err != nil {
-		log.Printf("ViewPost: no session cookie found: %v", err)
-		// Allow viewing posts without being logged in, but user will be nil
-		user = nil
-	} else {
-		// Validate session and get user
-		user, err = h.userService.GetUserBySessionID(r.Context(), sessionCookie.Value)
-		if err != nil {
-			log.Printf("ViewPost: invalid session: %v", err)
-			user = nil // Don't fail, just set user to nil
-		}
-	}
+	user := utils.GetUserFromContext(r.Context())
 
 	query := r.URL.Query()
 	postIDStr := query.Get("id")

@@ -52,8 +52,8 @@ func (r *SessionRepository) CleanupExpiredSessions(ctx context.Context) error {
 	return err
 }
 
-func (r *SessionRepository) DeleteSession(ctx context.Context, sessionID string) error {
-	res, err := r.db.Exec(`DELETE FROM sessions WHERE session_id = ?`, sessionID)
+func (r *SessionRepository) DeleteSession(ctx context.Context, userID string) error {
+	res, err := r.db.Exec(`DELETE FROM sessions WHERE user_id = ?`, userID)
 	if err != nil {
 		return err
 	}

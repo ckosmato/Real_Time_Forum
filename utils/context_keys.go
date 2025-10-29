@@ -7,14 +7,11 @@ import (
 
 type contextKey string
 
-const (
-	ContextUser contextKey = "user"
-)
+const ContextUser contextKey = "user"
 
 func GetUserFromContext(ctx context.Context) *models.User {
-	userRaw := ctx.Value(ContextUser)
-	user, ok := userRaw.(*models.User)
-	if !ok || user == nil {
+	user, ok := ctx.Value(ContextUser).(*models.User)
+	if !ok {
 		return nil
 	}
 	return user
