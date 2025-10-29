@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 	"real-time-forum/models"
@@ -16,15 +15,15 @@ func InitHub() {
 	Hub = models.NewHub()
 	go Hub.Run()
 }
+type WebSocketHandler struct{}
 
-// HandleWebSocket handles WebSocket connections
-func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
+func NewWebSocketHandler() *WebSocketHandler {
+	return &WebSocketHandler{}
+}
+// WebSocket handles WebSocket connections
+func (h *WebSocketHandler) WebSocket(w http.ResponseWriter, r *http.Request) {
 	// Get user from context
 	user := utils.GetUserFromContext(r.Context())
-	if user == nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
 
 	// Upgrade the HTTP connection to WebSocket
 	conn, err := models.Upgrader.Upgrade(w, r, nil)
@@ -49,23 +48,3 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	go client.ReadPump()
 }
 
-// GetOnlineUsers returns the list of currently online users
-func GetOnlineUsers(w http.ResponseWriter, r *http.Request) {
-	if Hub == nil {
-		http.Error(w, "Hub not initialized", http.StatusInternalServerError)
-		return
-	}
-
-	users := Hub.GetActiveUsers()
-
-	response := struct {
-		Users []string `json:"users"`
-	}{
-		Users: users,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(response); err != nil {
-		http.Error(w, "Error encoding response", http.StatusInternalServerError)
-	}
-}

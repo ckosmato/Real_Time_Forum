@@ -31,6 +31,7 @@ type Handlers struct {
 	DashboardHandler *handlers.DashboardHandler
 	PostHandler      *handlers.PostHandler
 	CommentsHandler  *handlers.CommentsHandler
+	WebSocketHandler *handlers.WebSocketHandler
 }
 
 type Middlewares struct {
@@ -86,8 +87,8 @@ func Configure(mux *http.ServeMux, h *Handlers, deps *Dependencies, m *Middlewar
 	mux.Handle("/validate-session", m.LoggingMiddleware.Log(http.HandlerFunc(h.AuthHandler.CheckSession)))
 
 	// WebSocket routes
-	mux.Handle("/ws", m.AuthMiddleware.Authorize(m.LoggingMiddleware.Log(http.HandlerFunc(handlers.HandleWebSocket))))
-	mux.Handle("/ws/online-users", m.AuthMiddleware.Authorize(m.LoggingMiddleware.Log(http.HandlerFunc(handlers.GetOnlineUsers))))
+	mux.Handle("/ws", m.AuthMiddleware.Authorize(m.LoggingMiddleware.Log(http.HandlerFunc(h.WebSocketHandler.WebSocket))))
+//	mux.Handle("/ws/online-users", m.AuthMiddleware.Authorize(m.LoggingMiddleware.Log(http.HandlerFunc(handlers.GetOnlineUsers))))
 
 	// Static files
 	mux.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
@@ -150,6 +151,7 @@ func SetupHandlers(deps *Dependencies) *Handlers {
 		CommentsHandler:  handlers.NewCommentsHandler(deps.PostService, deps.CommentService, deps.CategoriesService, deps.UserService),
 		DashboardHandler: handlers.NewDashboardHandler(deps.PostService, deps.CategoriesService, deps.UserService),
 		PostHandler:      handlers.NewPostHandler(deps.PostService, deps.CategoriesService, deps.CommentService, deps.UserService),
+		WebSocketHandler: handlers.NewWebSocketHandler(),
 	}
 }
 

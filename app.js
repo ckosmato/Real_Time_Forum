@@ -332,18 +332,20 @@ class ForumApp {
             return;
         }
 
+        const sessionId = this.getCookie('session_id'); // <- grab session cookie
+
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/ws`;
-        
+        const wsUrl = `${protocol}//${window.location.host}/ws?session_id=${sessionId}`;
+
         console.log('Connecting to WebSocket:', wsUrl);
-        
+
         this.websocket = new WebSocket(wsUrl);
-        
+
         this.websocket.onopen = () => {
             console.log('WebSocket connected');
             this.isWebSocketConnected = true;
         };
-        
+
         this.websocket.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
@@ -352,12 +354,11 @@ class ForumApp {
                 console.error('Error parsing WebSocket message:', error);
             }
         };
-        
+
         this.websocket.onclose = (event) => {
             console.log('WebSocket disconnected:', event.code, event.reason);
             this.isWebSocketConnected = false;
-            
-            // Attempt to reconnect after 3 seconds if not intentional
+
             if (event.code !== 1000) {
                 setTimeout(() => {
                     console.log('Attempting to reconnect WebSocket...');
@@ -365,12 +366,13 @@ class ForumApp {
                 }, 3000);
             }
         };
-        
+
         this.websocket.onerror = (error) => {
             console.error('WebSocket error:', error);
             this.isWebSocketConnected = false;
         };
     }
+
 
     disconnectWebSocket() {
         if (this.websocket) {
