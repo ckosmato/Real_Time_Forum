@@ -1,50 +1,76 @@
 package handlers
 
 import (
+	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"real-time-forum/models"
+	"real-time-forum/services"
 	"real-time-forum/utils"
 )
 
-// Global hub instance
-var Hub *models.Hub
-
-// InitHub initializes the WebSocket hub
-func InitHub() {
-	Hub = models.NewHub()
-	go Hub.Run()
+type WebSocketHandler struct {
+	chatService *services.ChatService
 }
-type WebSocketHandler struct{}
 
-func NewWebSocketHandler() *WebSocketHandler {
-	return &WebSocketHandler{}
+func NewWebSocketHandler(chatService *services.ChatService) *WebSocketHandler {
+	return &WebSocketHandler{chatService: chatService}
 }
-// WebSocket handles WebSocket connections
+
+// WebSocket upgrades the HTTP connection
 func (h *WebSocketHandler) WebSocket(w http.ResponseWriter, r *http.Request) {
-	// Get user from context
 	user := utils.GetUserFromContext(r.Context())
 
-	// Upgrade the HTTP connection to WebSocket
 	conn, err := models.Upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("WebSocket upgrade error: %v", err)
+		http.Error(w, "Failed to upgrade WebSocket", http.StatusInternalServerError)
 		return
 	}
 
-	// Create a new client
 	client := &models.Client{
-		Hub:      Hub,
+		Username: user.Nickname,
 		Conn:     conn,
 		Send:     make(chan []byte, 256),
-		Username: user.Nickname,
 	}
 
-	// Register the client
-	client.Hub.Register <- client
+	h.chatService.Hub.Register <- client
 
-	// Start goroutines for reading and writing
-	go client.WritePump()
-	go client.ReadPump()
+	// Start read/write pumps
+	go h.readPump(client, r.Context())
+	go h.writePump(client)
 }
 
+func (h *WebSocketHandler) readPump(c *models.Client, ctx context.Context) {
+	defer func() {
+		h.chatService.Hub.Unregister <- c
+		c.Conn.Close()
+	}()
+
+	for {
+		_, msgBytes, err := c.Conn.ReadMessage()
+		if err != nil {
+			log.Printf("Read error: %v", err)
+			break
+		}
+
+		var msg models.Message
+		if err := json.Unmarshal(msgBytes, &msg); err != nil {
+			log.Printf("JSON unmarshal error: %v", err)
+			continue
+		}
+
+		msg.From = c.Username
+		h.chatService.ProcessMessage(ctx, &msg)
+	}
+}
+
+func (h *WebSocketHandler) writePump(c *models.Client) {
+	defer c.Conn.Close()
+	for msg := range c.Send {
+		if err := c.Conn.WriteMessage(1, msg); err != nil {
+			log.Printf("Write error: %v", err)
+			break
+		}
+	}
+}

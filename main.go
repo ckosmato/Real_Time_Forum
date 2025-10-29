@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"real-time-forum/handlers"
 	"real-time-forum/middleware"
+	"real-time-forum/models"
 	"real-time-forum/repositories"
 	"real-time-forum/services"
 	"strings"
@@ -20,10 +21,10 @@ type Dependencies struct {
 	AuthService    services.AuthService
 	UserService    services.UserService
 	SessionService services.SessionService
-
 	PostService       services.PostService
 	CategoriesService services.CategoriesService
 	CommentService    services.CommentsService
+	ChatService      services.ChatService
 }
 
 type Handlers struct {
@@ -49,11 +50,11 @@ func main() {
 
 	// Setup dependencies and handlers
 	deps := SetupDependencies(db)
+
+	go deps.ChatService.Hub.Run()  // start the hub
+	
 	handlerInstances := SetupHandlers(deps)
 	middlewareInstances := SetupMiddleware(deps)
-
-	// Initialize WebSocket hub
-	handlers.InitHub()
 
 	// Setup routes
 	mux := http.NewServeMux()
@@ -118,6 +119,9 @@ func Configure(mux *http.ServeMux, h *Handlers, deps *Dependencies, m *Middlewar
 
 func SetupDependencies(db *sql.DB) *Dependencies {
 
+	// Models
+	hub := models.NewHub() 
+
 
 	// Repositories
 	userRepo := repositories.NewUserRepository(db)
@@ -125,6 +129,7 @@ func SetupDependencies(db *sql.DB) *Dependencies {
 	postRepo := repositories.NewPostRepository(db)
 	categoriesRepo := repositories.NewCategoriesRepository(db)
 	commentRepo := repositories.NewCommentRepository(db)
+	messagesRepo := repositories.NewMessageRepository(db)
 
 	// Services
 	userService := services.NewUserService(*userRepo)
@@ -133,6 +138,7 @@ func SetupDependencies(db *sql.DB) *Dependencies {
 	postService := services.NewPostService(*postRepo)
 	categoriesService := services.NewCategoriesService(*categoriesRepo)
 	commentService := services.NewCommentsService(*commentRepo)
+	chatService := services.NewChatService(messagesRepo, hub)
 
 	return &Dependencies{
 		UserService:       *userService,
@@ -141,6 +147,7 @@ func SetupDependencies(db *sql.DB) *Dependencies {
 		PostService:       *postService,
 		CategoriesService: *categoriesService,
 		CommentService:    *commentService,
+		ChatService:      *chatService,
 	}
 }
 
@@ -151,7 +158,7 @@ func SetupHandlers(deps *Dependencies) *Handlers {
 		CommentsHandler:  handlers.NewCommentsHandler(deps.PostService, deps.CommentService, deps.CategoriesService, deps.UserService),
 		DashboardHandler: handlers.NewDashboardHandler(deps.PostService, deps.CategoriesService, deps.UserService),
 		PostHandler:      handlers.NewPostHandler(deps.PostService, deps.CategoriesService, deps.CommentService, deps.UserService),
-		WebSocketHandler: handlers.NewWebSocketHandler(),
+		WebSocketHandler: handlers.NewWebSocketHandler(&deps.ChatService),
 	}
 }
 
