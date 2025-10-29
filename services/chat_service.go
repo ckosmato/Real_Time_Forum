@@ -43,3 +43,8 @@ func (s *ChatService) ProcessMessage(msg *models.Message) {
 		s.Hub.Broadcast <- messageBytes
 	}
 }
+
+// Fetch chat history for a user
+func (s *ChatService) GetChatHistory(ctx context.Context, user1, user2 string) ([]models.Message, error) {
+	return s.messageRepo.GetMessages(ctx, user1, user2, 20)
+}

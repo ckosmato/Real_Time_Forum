@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"real-time-forum/models"
@@ -27,7 +26,6 @@ func NewPostHandler(ps services.PostService, cs services.CategoriesService, coms
 }
 
 func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
-	fmt.Print("here")
 	switch r.Method {
 	case http.MethodGet:
 		categories, err := h.categoriesService.GetAllCategories(r.Context())
@@ -46,8 +44,6 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 		})
 
 	case http.MethodPost:
-
-		// Validate session and get user
 		user := utils.GetUserFromContext(r.Context())
 
 		if err := r.ParseMultipartForm(20 << 20); err != nil {
@@ -99,7 +95,6 @@ func (h *PostHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PostHandler) ViewPost(w http.ResponseWriter, r *http.Request) {
-	fmt.Print("here")
 	if r.Method != http.MethodGet {
 		log.Printf("ViewPost: invalid method %s", r.Method)
 		w.Header().Set("Content-Type", "application/json")

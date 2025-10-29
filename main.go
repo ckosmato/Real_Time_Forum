@@ -88,9 +88,15 @@ func Configure(mux *http.ServeMux, h *Handlers, deps *Dependencies, m *Middlewar
 	mux.Handle("/validate-session", m.LoggingMiddleware.Log(http.HandlerFunc(h.AuthHandler.CheckSession)))
 
 	// WebSocket routes
+mux.Handle("/chathistory",
+    m.AuthMiddleware.Authorize(
+        m.LoggingMiddleware.Log(http.HandlerFunc(h.WebSocketHandler.ChatHistory)),
+    ),
+)
 	mux.Handle("/ws", m.AuthMiddleware.Authorize(m.LoggingMiddleware.Log(http.HandlerFunc(h.WebSocketHandler.WebSocket))))
-//	mux.Handle("/ws/online-users", m.AuthMiddleware.Authorize(m.LoggingMiddleware.Log(http.HandlerFunc(handlers.GetOnlineUsers))))
-
+	
+	
+	
 	// Static files
 	mux.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "style.css")

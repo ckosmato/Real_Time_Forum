@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"real-time-forum/models"
@@ -72,4 +73,22 @@ func (h *WebSocketHandler) writePump(c *models.Client) {
 			break
 		}
 	}
+}
+
+func (h *WebSocketHandler) ChatHistory(w http.ResponseWriter, r *http.Request) {
+	fmt.Print("ChatHistory handler called\n")
+	query := r.URL.Query()
+	user2 := query.Get("user2")
+	user := utils.GetUserFromContext(r.Context())
+	//fmt.Println("Fetching chat history between:", user.Nickname, "and", user2)
+	history, err := h.chatService.GetChatHistory(r.Context(), user.Nickname, user2)
+	if err != nil {
+		http.Error(w, "Failed to get chat history", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"history": history,
+	})
 }

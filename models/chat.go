@@ -9,6 +9,7 @@ import (
 
 type Message struct {
 	ID        int       `json:"id"`
+	Type      string    `json:"type"`
 	From      string    `json:"from"`
 	To        string    `json:"to"`
 	Content   string    `json:"content"`

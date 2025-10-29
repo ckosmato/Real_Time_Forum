@@ -247,7 +247,7 @@ class ForumApp {
     async loadDashboard() {
 
         this.showLoading();
-        //get session id from cookie
+        
         const sessionId = this.getCookie('session_id');
 
 
@@ -266,10 +266,8 @@ class ForumApp {
                     'X-Session-ID': sessionId
                 }
             });
-            console.log('Dashboard response status:', response.status);
             
             const data = await response.json();
-            console.log('Dashboard response data:', data);
             
             if (response.ok) {
                 // Update user information from the server response
@@ -282,16 +280,12 @@ class ForumApp {
                     this.clearState();
                     this.showAuth();
                     document.getElementById('login-form').style.display = 'block';
-                    document.getElementById('register-form').style.display = 'none';
-                    console.error('No user data in dashboard response');
+                    document.getElementById('register-form').style.display = 'none'
                 }
 
                 this.categories = data.categories || [];
                 this.posts = data.posts || [];
-                
-                console.log('Loaded categories:', this.categories.length);
-                console.log('Loaded posts:', this.posts.length);
-                
+               
                 this.renderCategories();
                 this.renderPosts();
             } else {
@@ -311,8 +305,6 @@ class ForumApp {
             this.initializeChatEventListeners();
             // Connect WebSocket for real-time features
             this.connectWebSocket();
-            // Request notification permission
-            this.requestNotificationPermission();
         }
     }
 
@@ -328,16 +320,13 @@ class ForumApp {
     // WebSocket Connection Methods
     connectWebSocket() {
         if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-            console.log('WebSocket already connected');
             return;
         }
 
-        const sessionId = this.getCookie('session_id'); // <- grab session cookie
+        const sessionId = this.getCookie('session_id');
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws?session_id=${sessionId}`;
-
-        console.log('Connecting to WebSocket:', wsUrl);
 
         this.websocket = new WebSocket(wsUrl);
 
@@ -349,7 +338,7 @@ class ForumApp {
         this.websocket.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                this.handleWebSocketMessage(message);
+                this.displayChatMessage(message);
             } catch (error) {
                 console.error('Error parsing WebSocket message:', error);
             }
@@ -382,25 +371,7 @@ class ForumApp {
         }
     }
 
-    handleWebSocketMessage(message) {
-        console.log('Received WebSocket message:', message);
-        console.log('Current user:', this.currentUser?.nickname);
-        
-        switch (message.type) {
-            case 'chat_message':
-                console.log('Processing chat message...');
-                this.displayChatMessage(message);
-                break;
-            case 'user_online':
-                this.handleUserOnline(message);
-                break;
-            case 'user_offline':
-                this.handleUserOffline(message);
-                break;
-            default:
-                console.log('Unknown message type:', message.type);
-        }
-    }
+
 
     sendWebSocketMessage(message) {
         if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
@@ -414,7 +385,7 @@ class ForumApp {
     }
 
     displayChatMessage(message) {
-        console.log('displayChatMessage called with:', message);
+      //  console.log('displayChatMessage called with:', message);
         
         const chatMessages = document.getElementById('chat-messages');
         const chatWidget = document.getElementById('chat-widget');
@@ -427,24 +398,17 @@ class ForumApp {
         const isFromCurrentUser = message.from === this.currentUser?.nickname;
         const isToCurrentUser = message.to === this.currentUser?.nickname;
         
-        console.log('Message analysis:', {
-            from: message.from,
-            to: message.to,
-            currentUser: this.currentUser?.nickname,
-            isFromCurrentUser,
-            isToCurrentUser
-        });
-        
         // If this is an incoming message (not from current user but to current user)
         if (!isFromCurrentUser && isToCurrentUser) {
-            console.log('Processing incoming message...');
+         //   console.log('Processing incoming message...');
             
             // Show notification
-            this.showChatNotification(message);
+            this.showToast(`💬 New message from ${message.from}`, 'info', 4000);
+            //this.showChatNotification(message);
             
             // Auto-open chat if it's not open
             if (!chatWidget || chatWidget.style.display === 'none') {
-                console.log('Auto-opening chat for new message');
+               // console.log('Auto-opening chat for new message');
                 this.autoOpenChatForNewMessage(message);
                 return; // Let the auto-open handle message display
             }
@@ -452,7 +416,7 @@ class ForumApp {
         
         // Only display in chat if chat widget exists and is visible
         if (!chatWidget || chatWidget.style.display === 'none') {
-            console.log('Chat widget not visible, skipping message display');
+          //  console.log('Chat widget not visible, skipping message display');
             return;
         }
         
@@ -461,7 +425,7 @@ class ForumApp {
             (message.from === this.currentChatUser || message.to === this.currentChatUser ||
              (isFromCurrentUser && message.to === this.currentChatUser))) {
             
-            console.log('Adding message to current chat');
+           // console.log('Adding message to current chat');
             
             const messageDiv = document.createElement('div');
             
@@ -478,34 +442,6 @@ class ForumApp {
         }
     }
 
-    showChatNotification(message) {
-        // Show browser notification if permission granted
-        if (Notification.permission === 'granted') {
-            const notification = new Notification(`New message from ${message.from}`, {
-                body: message.content,
-                icon: '/favicon.ico', // You can add a favicon
-                tag: `chat-${message.from}`, // Replace previous notifications from same user
-            });
-            
-            // Auto close after 5 seconds
-            setTimeout(() => {
-                notification.close();
-            }, 5000);
-            
-            // Click notification to open chat
-            notification.onclick = () => {
-                this.openChatWithUser(message.from);
-                window.focus();
-                notification.close();
-            };
-        }
-        
-        // Show in-app notification toast
-        this.showToast(`💬 New message from ${message.from}`, 'info', 4000);
-        
-        // Add visual indicator to the sender in online users list
-        this.addMessageIndicatorToUser(message.from);
-    }
 
     autoOpenChatForNewMessage(message) {
         console.log('Auto-opening chat for new message from:', message.from);
@@ -530,81 +466,7 @@ class ForumApp {
             chatMessages.appendChild(messageDiv);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
-        
-        // Show a notification that chat was auto-opened
-        this.showToast(`📱 Chat opened with ${message.from}`, 'success', 3000);
-    }
 
-    addMessageIndicatorToUser(username) {
-        // Find the user in the online users list
-        const activeUsersList = document.getElementById('active-users-list');
-        if (!activeUsersList) return;
-        
-        const userElements = activeUsersList.querySelectorAll('.active-user');
-        userElements.forEach(userElement => {
-            if (userElement.textContent.trim() === username) {
-                // Add a message indicator if it doesn't exist
-                let indicator = userElement.querySelector('.message-indicator');
-                if (!indicator) {
-                    indicator = document.createElement('span');
-                    indicator.className = 'message-indicator';
-                    indicator.textContent = '1';
-                    userElement.appendChild(indicator);
-                } else {
-                    // Increment the count
-                    const count = parseInt(indicator.textContent) || 0;
-                    indicator.textContent = (count + 1).toString();
-                }
-            }
-        });
-    }
-
-    removeMessageIndicatorFromUser(username) {
-        // Find the user in the online users list and remove indicator
-        const activeUsersList = document.getElementById('active-users-list');
-        if (!activeUsersList) return;
-        
-        const userElements = activeUsersList.querySelectorAll('.active-user');
-        userElements.forEach(userElement => {
-            if (userElement.textContent.replace(/\d+$/, '').trim() === username) {
-                const indicator = userElement.querySelector('.message-indicator');
-                if (indicator) {
-                    indicator.remove();
-                }
-            }
-        });
-    }
-
-    requestNotificationPermission() {
-        if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission().then(permission => {
-                console.log('Notification permission:', permission);
-            });
-        }
-    }
-
-    handleUserOnline(message) {
-        console.log('User came online:', message.user);
-        // Refresh the active users list
-        this.loadActiveUsers();
-    }
-
-    handleUserOffline(message) {
-        console.log('User went offline:', message.user);
-        // Refresh the active users list
-        this.loadActiveUsers();
-    }
-
-    handleUserOnline(message) {
-        console.log(`User ${message.username} came online`);
-        // Refresh the active users list
-        this.loadActiveUsers();
-    }
-
-    handleUserOffline(message) {
-        console.log(`User ${message.username} went offline`);
-        // Refresh the active users list
-        this.loadActiveUsers();
     }
 
     async loadActiveUsers() {
@@ -642,7 +504,7 @@ class ForumApp {
             userDiv.textContent = this.escapeHtml(user.Nickname);
             userDiv.dataset.username = user.Nickname;
             userDiv.addEventListener('click', (e) => {
-                console.log('User clicked:', user.Nickname); // Debug log
+               // console.log('User clicked:', user.Nickname); // Debug log
                 e.stopPropagation(); // Prevent widget toggle when clicking user
                 this.openChatWithUser(user.Nickname);
             });
@@ -650,7 +512,6 @@ class ForumApp {
         });
     }
 
-    // Toggle the online users widget open/closed
     toggleOnlineUsersWidget(e) {
         if (e && e.stopPropagation) e.stopPropagation();
         
@@ -674,43 +535,28 @@ class ForumApp {
     }
 
     openChatWithUser(username) {
-        console.log('Opening chat with user:', username); // Debug log
-        
         const chatWidget = document.getElementById('chat-widget');
         const chatUsername = document.getElementById('chat-username');
         const chatMessages = document.getElementById('chat-messages');
         
-        console.log('Chat elements found:', {
-            chatWidget: !!chatWidget,
-            chatUsername: !!chatUsername,
-            chatMessages: !!chatMessages
-        }); // Debug log
         
         if (chatWidget && chatUsername && chatMessages) {
             // Set the current chat user
             this.currentChatUser = username;
             
-            // Remove message indicator for this user
-            this.removeMessageIndicatorFromUser(username);
-            
             // Set the chat user in UI
             chatUsername.innerHTML = `<i class="fa-solid fa-comment"></i> Chat with ${this.escapeHtml(username)}`;
-            
-            // Clear previous messages 
-            chatMessages.innerHTML = '<div class="chat-message received">Start your conversation with ' + this.escapeHtml(username) + '!</div>';
             
             // Show the chat widget
             chatWidget.style.display = 'flex';
             
             // Focus on the input
             const chatInput = document.getElementById('chat-input');
-            if (chatInput) chatInput.focus();
-            
-            console.log('Chat widget should now be visible'); // Debug log
-        } else {
-            console.error('Chat elements not found!');
-        }
+            chatInput.focus();
+            this.loadChatHistory(username);
     }
+}
+
 
     closeChatWidget() {
         const chatWidget = document.getElementById('chat-widget');
@@ -721,11 +567,9 @@ class ForumApp {
     }
 
     initializeChatEventListeners() {
-        console.log('Initializing chat event listeners...'); // Debug log
         
         // Close chat button
         const closeBtn = document.querySelector('.chat-close');
-        console.log('Close button found:', !!closeBtn); // Debug log
         if (closeBtn) {
             closeBtn.addEventListener('click', () => this.closeChatWidget());
         }
@@ -733,8 +577,6 @@ class ForumApp {
         // Send message functionality
         const sendBtn = document.getElementById('chat-send');
         const chatInput = document.getElementById('chat-input');
-        
-        console.log('Send button and input found:', !!sendBtn, !!chatInput); // Debug log
         
         if (sendBtn && chatInput) {
             sendBtn.addEventListener('click', () => this.sendChatMessage());
@@ -745,13 +587,6 @@ class ForumApp {
             });
         }
         
-        console.log('Chat event listeners initialized'); // Debug log
-    }
-
-    // Test function to manually open chat (for debugging)
-    testOpenChat() {
-        console.log('Test: Opening chat with test user...');
-        this.openChatWithUser('TestUser');
     }
 
     sendChatMessage() {
@@ -771,13 +606,9 @@ class ForumApp {
             
             // Send via WebSocket
             if (this.sendWebSocketMessage(message)) {
-                // Only add to UI locally if WebSocket send was successful
-                // The actual message will be received back through WebSocket
-                
-                // Clear input
+
                 chatInput.value = '';
-                
-                console.log('Message sent via WebSocket:', message);
+            
             } else {
                 // Fallback: show error message
                 this.showToast('Failed to send message. Please check your connection.', 'error');
@@ -828,8 +659,55 @@ class ForumApp {
         // If we have categories from backend, we could append them here
         // but for now, just use the hardcoded ones
     }
+    loadChatHistory(username) {
+        console.log("Calling loadChatHistory for", username);
+        const chatMessages = document.getElementById('chat-messages');
 
+        fetch(`/chathistory?user2=${encodeURIComponent(username)}`, {
+            method: 'GET',
+            headers: {
+                'X-Session-ID': this.getCookie('session_id'),
+            },
+            credentials: 'include'
+        })
+        .then(response => {
+            console.log("Response status:", response.status);
+            return response.json();
+        })
+        .then(data => {
+            chatMessages.innerHTML = '';
 
+            data.history.forEach(msg => {
+                const msgDiv = document.createElement('div');
+                msgDiv.classList.add('chat-message');
+
+                // Check if the message is from the current user or the other user
+                if (msg.from === this.currentUser.nickname) {
+                    msgDiv.classList.add('sent');       // message you sent
+                } else {
+                    msgDiv.classList.add('received');   // message received
+                }
+
+                // Add the content
+                msgDiv.textContent = msg.content;
+
+                // Optionally, add a timestamp
+                const timeDiv = document.createElement('div');
+                timeDiv.classList.add('chat-message-time');
+                timeDiv.textContent = new Date(msg.timestamp).toLocaleTimeString();
+                msgDiv.appendChild(timeDiv);
+
+                chatMessages.appendChild(msgDiv);
+            });
+
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        })
+        .catch(err => {
+            console.error('Error fetching chat history:', err);
+            chatMessages.innerHTML = '<div class="chat-message error">Failed to load chat history.</div>';
+        });
+    }
     async filterByCategory(categoryId) {
         // Update active category
         document.querySelectorAll('.category-item').forEach(item => {
