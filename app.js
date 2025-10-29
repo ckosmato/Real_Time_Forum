@@ -60,18 +60,35 @@ class ForumApp {
     async checkAuthStatus() {
        
         const sessionCookie = this.getCookie('session_id');
-       
-        if (sessionCookie) {     
-            await this.loadDashboard();
-        } else {
+        // If there's no session cookie on the client, don't call the server —
+        // go straight to the login/auth view. This avoids sending a bogus
+        // header value like "null" which would force an unnecessary round
+        // trip to the validate endpoint.
+        if (!sessionCookie) {
+            console.log('No session cookie present — redirecting to login');
             this.clearState();
             this.showAuth();
-            document.getElementById('login-form').style.display = 'block';
-            document.getElementById('register-form').style.display = 'none';
-            console.log("not logged in");
-            // Still render categories even when not logged in
-            //this.renderCategories();
+            return;
         }
+
+        await fetch('/validate-session', {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'X-Session-ID': sessionCookie }
+        })
+        .then(async response => {
+            if (response.ok) {
+                await this.loadDashboard();
+            } else {
+                this.clearState();
+                this.showAuth();
+            }
+        })
+        .catch(error => {
+            console.error('Error validating session:', error);
+            this.clearState();
+            this.showAuth();
+        });
     }
 
     showAuth() {
@@ -106,7 +123,7 @@ class ForumApp {
         try {
             const response = await fetch('/login', {
                 method: 'POST',
-                credentials: 'include', // Changed from 'same-origin' to 'include' to ensure cookies are sent/received
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json',
                 },

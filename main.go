@@ -83,6 +83,8 @@ func Configure(mux *http.ServeMux, h *Handlers, deps *Dependencies, m *Middlewar
 	mux.Handle("/post/createcomment", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.CommentsHandler.CreateComment))))
 	mux.Handle("/category/", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.DashboardHandler.PostsByCategory))))
 
+	mux.Handle("/validate-session", m.LoggingMiddleware.Log(http.HandlerFunc(h.AuthHandler.CheckSession)))
+
 	// WebSocket routes
 	mux.Handle("/ws", m.AuthMiddleware.Authorize(m.LoggingMiddleware.Log(http.HandlerFunc(handlers.HandleWebSocket))))
 	mux.Handle("/ws/online-users", m.AuthMiddleware.Authorize(m.LoggingMiddleware.Log(http.HandlerFunc(handlers.GetOnlineUsers))))

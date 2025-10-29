@@ -273,3 +273,29 @@ func (h *AuthHandler) LogOut(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Logout successful"})
 }
+
+func (h *AuthHandler) CheckSession(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Method not allowed"})
+		return
+	}
+	sessionID := r.Header.Get("X-Session-ID")
+	err := h.sessionService.ValidateSession(r.Context(), sessionID)
+	if err != nil {
+		//expire cookie on client side
+		http.SetCookie(w, &http.Cookie{
+			Name:   "session_id",
+			Value:  "",
+			Path:   "/",
+			MaxAge: -1,
+		})
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid session"})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}

@@ -30,16 +30,16 @@ func (r *SessionRepository) CreateSession(ctx context.Context, session models.Se
 	return err
 }
 
-func (r *SessionRepository) GetSessionByID(ctx context.Context, sessionID string) (*models.Session, error) {
+func (r *SessionRepository) CheckSession(ctx context.Context, sessionID string)  error {
 	s := models.Session{}
 	err := r.db.QueryRowContext(ctx, "SELECT session_id, user_id, created_at, expires_at FROM sessions WHERE session_id = ?", sessionID).Scan(&s.ID, &s.UserID, &s.CreatedAt, &s.ExpiresAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, errors.New("user not found")
+			return errors.New("session not found")
 		}
-		return nil, err
+		return err
 	}
-	return &s, nil
+	return nil
 }
 
 func (r *SessionRepository) CleanupExpiredSessions(ctx context.Context) error {

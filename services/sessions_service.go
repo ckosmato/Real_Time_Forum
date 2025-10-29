@@ -63,3 +63,12 @@ func (s *SessionService) CleanupExpiredSessions(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (s *SessionService) ValidateSession(ctx context.Context, sessionID string) error {
+	err := s.repo.CheckSession(ctx, sessionID)
+	if err != nil {
+		log.Printf("ValidateSession: failed to retrieve session %s: %v", sessionID, err)
+		return errors.New("failed to retrieve session")
+	}
+	return nil
+}
