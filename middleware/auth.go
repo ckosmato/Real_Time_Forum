@@ -21,6 +21,11 @@ func NewAuthMiddleware(us services.UserService) *AuthMiddleware {
 func (m *AuthMiddleware) Authorize(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sessionID := r.Header.Get("X-Session-ID")
+        
+		if sessionID == "" {
+            // Support WebSocket connections
+            sessionID = r.URL.Query().Get("session_id")
+        }
 
 		if sessionID == "" {
 			w.Header().Set("Content-Type", "application/json")
