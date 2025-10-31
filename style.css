@@ -275,104 +275,224 @@ body {
 
 .main-content {
   display: flex;
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 2rem auto;
   gap: 2rem;
   padding: 0 2rem;
   flex: 1;
+  height: calc(100vh - 140px);
 }
 
-/* Online Users Floating Widget */
-.online-users-widget {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 280px;
+/* Online Users Sidebar (Discord-style) */
+.online-users-sidebar {
+  width: 240px;
   background: #2d2d39;
-  border-radius: 15px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  border: 2px solid #45f3ff;
-  z-index: 1000;
-  overflow: hidden;
-  transition: all 0.3s ease, background 0.35s ease, border-color 0.35s ease;
-}
-
-/* Closed state: dark grey background + white text */
-.online-users-widget.closed {
-  background: #2d2d39; /* keep the dark grey background when closed */
-  border-color: #2d2d39; /* remove the bright border when closed */
-  box-shadow: 0 6px 18px rgba(0,0,0,0.6);
-}
-
-.online-users-widget.closed .widget-header {
-  background: transparent; /* header blends with black */
-  padding: 0.85rem 1rem;
-}
-
-.online-users-widget.closed .widget-header h4 {
-  color: #fff; /* white text when closed */
-}
-
-/* Let the content collapse via max-height and opacity so it animates smoothly */
-.online-users-widget .widget-content {
-  /* Use transform + opacity for smooth, GPU-accelerated animations instead of max-height */
-  transform-origin: top;
-  transform: scaleY(1);
-  opacity: 1;
-  padding: 1rem;
-  overflow: hidden;
-  transition: transform 0.28s cubic-bezier(.2,.9,.2,1), opacity 0.25s ease, padding 0.2s ease;
-  will-change: transform, opacity;
-  max-height: 300px;
-}
-
-.online-users-widget .widget-content.collapsed {
-  transform: scaleY(0);
-  opacity: 0;
-  padding: 0;
-  pointer-events: none; /* disable interactions while closed */
-  max-height: 0;
-}
-
-.online-users-widget.closed #active-users-list .active-user {
-  background: transparent;
-  color: #fff;
-  border-left-color: rgba(255,255,255,0.12);
-  transition: all 0.3s ease;
-}
-
-.widget-toggle {
-  background: none;
-  border: none;
-  color: #111;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: transform 0.35s ease, color 0.25s ease;
-}
-
-.widget-toggle.collapsed {
-  transform: rotate(180deg);
-}
-
-.widget-header {
-  background: #45f3ff;
-  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid #3a3a47;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  transition: background 0.35s ease, padding 0.25s ease;
+  flex-direction: column;
+  height: fit-content;
+  max-height: 100%;
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.widget-header h4 {
+.online-users-header {
+  background: linear-gradient(135deg, #45f3ff 0%, #ff2770 100%);
+  padding: 1rem;
+  border-bottom: 1px solid #3a3a47;
+}
+
+.online-users-header h3 {
   color: #111;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   margin: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: color 0.25s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.online-count {
+  background: rgba(0, 0, 0, 0.2);
+  color: #111;
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.online-users-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+  max-height: calc(100vh - 200px);
+}
+
+.active-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.active-user {
+  padding: 0.5rem 1rem;
+  color: #b9bbbe;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  border-radius: 0;
+  position: relative;
+}
+
+.active-user:hover {
+  background: #3a3a47;
+  color: #fff;
+  padding-left: 1.2rem;
+}
+
+.active-user:before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: #4caf50;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(76, 175, 80, 0.5);
+}
+
+.active-user:active {
+  background: #45f3ff;
+  color: #111;
+  transform: translateY(1px);
+}
+
+.active-user:focus {
+  outline: 2px solid #45f3ff;
+  outline-offset: 2px;
+  background: #3a3a47;
+  color: #fff;
+}
+
+.active-user:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Animation for new users joining */
+@keyframes userJoin {
+  0% {
+    opacity: 0;
+    transform: translateX(20px) scale(0.8);
+    background: #45f3ff;
+  }
+  50% {
+    background: #45f3ff;
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    background: transparent;
+  }
+}
+
+/* Animation for users leaving */
+@keyframes userLeave {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    background: #ff2770;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-20px) scale(0.8);
+    background: #ff2770;
+  }
+}
+
+.active-user.joining {
+  animation: userJoin 0.6s ease-out;
+}
+
+.active-user.leaving {
+  animation: userLeave 0.4s ease-in;
+}
+
+/* Custom scrollbar for online users */
+.online-users-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.online-users-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.online-users-content::-webkit-scrollbar-thumb {
+  background: #45f3ff;
+  border-radius: 3px;
+}
+
+.online-users-content::-webkit-scrollbar-thumb:hover {
+  background: #ff2770;
+}
+
+/* Scroll indicator for mobile */
+.scroll-indicator {
+  display: none;
+  padding: 0.3rem;
+  color: #45f3ff;
+  font-size: 0.8rem;
+  text-align: center;
+  opacity: 0.7;
+}
+
+@media (max-width: 768px) {
+  .scroll-indicator {
+    display: block;
+  }
+}
+
+/* Additional responsive utility classes */
+.online-users-sidebar.mobile-layout {
+  transition: all 0.3s ease;
+}
+
+.online-users-sidebar.tablet-layout .active-user {
+  font-size: 0.85rem;
+}
+
+/* Touch device optimizations */
+.online-users-sidebar.touch-device .active-user {
+  min-height: 44px; /* Minimum touch target size */
+  display: flex;
+  align-items: center;
+}
+
+.online-users-sidebar.touch-device .active-user:hover {
+  background: #3a3a47; /* Reduce hover effects on touch */
+}
+
+/* Hide online users sidebar when chat is open on small screens */
+@media (max-width: 768px) {
+  .chat-widget.active ~ .online-users-sidebar {
+    display: none;
+  }
+  
+  .online-users-sidebar.mobile-layout.floating {
+    position: fixed !important;
+    right: 10px;
+    bottom: 10px;
+    width: 200px;
+    max-height: 60vh;
+    z-index: 1000;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
 }
 
 .text-green {
@@ -383,27 +503,6 @@ body {
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
-}
-
-#active-users-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-#active-users-list .active-user {
-  background: #1a1a1f;
-  padding: 0.75rem;
-  border-radius: 10px;
-  color: #ff2770;
-  border-left: 3px solid #4caf50;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  transition: all 0.3s ease;
-  cursor: pointer;
-  pointer-events: auto; /* Ensure clicks are enabled */
 }
 
 #active-users-list .active-user:hover {
@@ -952,6 +1051,21 @@ body {
   border-left-color: #4caf50;
 }
 
+.toast.warning {
+  border-left-color: #ff9800;
+}
+
+.toast.info {
+  border-left-color: #2196F3;
+}
+
+/* Special styling for user status toasts */
+.toast:has-text("joined the forum"),
+.toast:has-text("left the forum") {
+  font-weight: 500;
+  box-shadow: 0 5px 20px rgba(69, 243, 255, 0.3);
+}
+
 @keyframes slideIn {
   from {
     transform: translateX(100%);
@@ -964,14 +1078,88 @@ body {
 }
 
 /* Responsive Design */
+@media (max-width: 1200px) {
+  .main-content {
+    max-width: 100%;
+    gap: 1.5rem;
+  }
+  
+  .online-users-sidebar {
+    width: 200px;
+  }
+}
+
+@media (max-width: 992px) {
+  .main-content {
+    gap: 1rem;
+  }
+  
+  .sidebar {
+    width: 200px;
+  }
+  
+  .online-users-sidebar {
+    width: 180px;
+  }
+  
+  .online-users-header h3 {
+    font-size: 0.8rem;
+  }
+  
+  .active-user {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+  }
+}
+
 @media (max-width: 768px) {
   .main-content {
     flex-direction: column;
     padding: 0 1rem;
+    height: auto;
   }
   
   .sidebar {
     width: 100%;
+    order: 1;
+  }
+  
+  .content {
+    order: 2;
+  }
+  
+  .online-users-sidebar {
+    order: 3;
+    width: 100%;
+    max-height: 200px;
+    position: sticky;
+    bottom: 0;
+    z-index: 100;
+  }
+  
+  .online-users-content {
+    max-height: 120px;
+  }
+  
+  .active-users-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    padding: 0 0.5rem;
+  }
+  
+  .active-user {
+    padding: 0.3rem 0.6rem;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    background: #3a3a47;
+    flex-shrink: 0;
+  }
+  
+  .active-user:hover {
+    padding-left: 0.6rem;
+    background: #45f3ff;
+    color: #111;
   }
   
   .nav-content {
@@ -992,17 +1180,6 @@ body {
     width: 380px;
   }
 
-  /* Mobile adjustments for online users widget */
-  .online-users-widget {
-    width: 260px;
-    bottom: 10px;
-    right: 10px;
-  }
-  
-  .widget-content {
-    max-height: 200px;
-  }
-
   /* Mobile adjustments for chat widget */
   .chat-widget {
     width: 100%;
@@ -1011,5 +1188,103 @@ body {
     right: 0;
     left: 0;
     border-radius: 15px 15px 0 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    padding: 0 0.5rem;
+    gap: 0.5rem;
+  }
+  
+  .online-users-sidebar {
+    max-height: 150px;
+  }
+  
+  .online-users-header {
+    padding: 0.7rem;
+  }
+  
+  .online-users-header h3 {
+    font-size: 0.75rem;
+  }
+  
+  .online-count {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.4rem;
+  }
+  
+  .online-users-content {
+    max-height: 80px;
+    padding: 0.3rem 0;
+  }
+  
+  .active-user {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+  
+  .active-user:before {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .nav-content h1 {
+    font-size: 1.2rem;
+  }
+  
+  .nav-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+  }
+  
+  .box {
+    width: 300px;
+  }
+  
+  .box:hover {
+    width: 320px;
+  }
+}
+
+/* Landscape mobile adjustments */
+@media (max-width: 768px) and (orientation: landscape) {
+  .online-users-sidebar {
+    position: fixed;
+    right: 10px;
+    bottom: 10px;
+    width: 200px;
+    max-height: 60vh;
+    order: initial;
+    z-index: 1000;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+  
+  .active-users-list {
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .active-user {
+    border-radius: 0;
+    background: transparent;
+  }
+  
+  .active-user:hover {
+    background: #3a3a47;
+    padding-left: 1.2rem;
+  }
+  
+  .main-content {
+    flex-direction: row;
+  }
+  
+  .sidebar {
+    order: initial;
+    width: 200px;
+  }
+  
+  .content {
+    order: initial;
   }
 }

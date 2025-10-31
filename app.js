@@ -35,7 +35,6 @@ class ForumApp {
             // Show the dashboard UI immediately after successful login
             this.auth.showApp();
             this.ui.showView('home');
-            this.loadActiveUsers();
 
             // Now fetch posts and categories and send session id in headers
             console.log('Fetching dashboard data...');
@@ -77,36 +76,8 @@ class ForumApp {
             this.posts.renderCategories();
         } finally {
             this.ui.hideLoading();
-            // Initialize chat after dashboard is loaded
+            // Initialize chat after dashboard is loaded - this will also get online users via WebSocket
             this.chat.init();
-        }
-    }
-
-    /**
-     * Load active users and display them in the widget
-     */
-    async loadActiveUsers() {
-        this.ui.showLoading();
-
-        try {
-            const response = await fetch('/dashboard/active-users', {
-                method: 'GET',
-                credentials: 'include',
-                headers: {
-                    'X-Session-ID': this.auth.getCookie('session_id')
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                this.ui.renderActiveUsers(data.users);
-            } else {
-                console.error('Failed to load active users');
-            }
-        } catch (error) {
-            console.error('Error loading active users:', error);
-        } finally {
-            this.ui.hideLoading();
         }
     }
 

@@ -168,22 +168,23 @@
                     </div>
                 </div>
             </section>
-        </main>
 
-        <!-- Online Users Floating Widget -->
-        <div class="online-users-widget">
-            <div class="widget-header">
-                <h4><i class="fa-solid fa-circle text-green"></i> Online Users</h4>
-                <button class="widget-toggle">
-                    <i class="fa-solid fa-chevron-down"></i>
-                </button>
-            </div>
-            <div class="widget-content">
-                <div id="active-users-list">
-                    <!-- Active users will be dynamically populated here -->
+            <!-- Online Users Sidebar (Discord-style) -->
+            <aside class="online-users-sidebar" role="complementary" aria-label="Online users">
+                <div class="online-users-header">
+                    <h3>
+                        <i class="fa-solid fa-circle text-green" aria-hidden="true"></i>
+                        Online Users
+                        <span id="online-count" class="online-count" aria-label="Number of online users">0</span>
+                    </h3>
                 </div>
-            </div>
-        </div>
+                <div class="online-users-content" role="list" aria-label="List of online users">
+                    <div id="active-users-list" class="active-users-list">
+                        <!-- Active users will be dynamically populated here -->
+                    </div>
+                </div>
+            </aside>
+        </main>
 
         <!-- Chat Box Widget -->
         <div class="chat-widget" id="chat-widget" style="display: none;">

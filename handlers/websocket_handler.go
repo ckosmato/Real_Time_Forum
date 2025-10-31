@@ -8,6 +8,7 @@ import (
 	"real-time-forum/models"
 	"real-time-forum/services"
 	"real-time-forum/utils"
+	"time"
 )
 
 type WebSocketHandler struct {
@@ -34,11 +35,39 @@ func (h *WebSocketHandler) WebSocket(w http.ResponseWriter, r *http.Request) {
 		Send:     make(chan []byte, 256),
 	}
 
+	// Send initial online users list to the newly connected client
+	h.sendInitialOnlineUsers(client)
+
 	h.chatService.Hub.Register <- client
 
 	// Start read/write pumps
 	go h.readPump(client)
 	go h.writePump(client)
+}
+
+// sendInitialOnlineUsers sends the current list of online users to a newly connected client
+func (h *WebSocketHandler) sendInitialOnlineUsers(client *models.Client) {
+	// Get online users excluding the current client
+	onlineUsers := h.chatService.Hub.GetOnlineUsersExcluding(client.Username)
+
+	initialMessage := map[string]interface{}{
+		"type":         "initial_online_users",
+		"from":         "system",
+		"to":           client.Username,
+		"online_users": onlineUsers,
+		"timestamp":    fmt.Sprintf("%v", time.Now()),
+	}
+
+	messageBytes, err := json.Marshal(initialMessage)
+	if err != nil {
+		log.Printf("Error marshaling initial online users message: %v", err)
+		return
+	}
+
+	// Send directly to the client's connection
+	if err := client.Conn.WriteMessage(1, messageBytes); err != nil {
+		log.Printf("Error sending initial online users: %v", err)
+	}
 }
 
 func (h *WebSocketHandler) readPump(c *models.Client) {

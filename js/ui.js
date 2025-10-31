@@ -13,7 +13,8 @@ class UIManager {
      */
     init() {
         this.bindNavigationEvents();
-        this.initializeWidget();
+        this.handleResponsiveLayout();
+        this.bindResizeEvents();
     }
 
     /**
@@ -27,53 +28,160 @@ class UIManager {
     }
 
     /**
-     * Initialize online users widget
+     * Handle responsive layout adjustments
      */
-    initializeWidget() {
-        try {
-            const widget = document.querySelector('.online-users-widget');
-            if (!widget) return;
-
-            const content = widget.querySelector('.widget-content');
-            const toggle = widget.querySelector('.widget-toggle');
-            const header = widget.querySelector('.widget-header');
-
-            // Initialize closed state
-            widget.classList.add('closed');
-            if (content) content.classList.add('collapsed');
-            if (toggle) toggle.classList.add('collapsed');
-
-            // Bind event listeners
-            if (toggle) toggle.addEventListener('click', (e) => this.toggleOnlineUsersWidget(e));
-            if (header) header.addEventListener('click', (e) => this.toggleOnlineUsersWidget(e));
-        } catch (err) {
-            console.error('Error initializing online users widget:', err);
-        }
+    handleResponsiveLayout() {
+        const updateLayout = () => {
+            const screenSize = this.getScreenSize();
+            const isMobile = screenSize === 'mobile' || screenSize === 'mobile-small';
+            const isTablet = screenSize === 'tablet';
+            const isTouch = this.isTouchDevice();
+            const onlineUsersSidebar = document.querySelector('.online-users-sidebar');
+            
+            if (onlineUsersSidebar) {
+                // Remove all responsive classes first
+                onlineUsersSidebar.classList.remove('mobile-layout', 'tablet-layout', 'floating');
+                
+                // Add appropriate classes
+                onlineUsersSidebar.classList.toggle('mobile-layout', isMobile);
+                onlineUsersSidebar.classList.toggle('tablet-layout', isTablet);
+                
+                // Adjust online users display based on screen size and orientation
+                if (isMobile && window.innerHeight < window.innerWidth) {
+                    // Landscape mobile - make it floating
+                    onlineUsersSidebar.classList.add('floating');
+                    onlineUsersSidebar.style.position = 'fixed';
+                } else if (isMobile) {
+                    // Portrait mobile - keep it in flow
+                    onlineUsersSidebar.style.position = 'static';
+                }
+                
+                // Add touch-specific styling
+                if (isTouch) {
+                    onlineUsersSidebar.classList.add('touch-device');
+                }
+            }
+            
+            // Update document body with screen size class for global styling
+            document.body.className = document.body.className.replace(/screen-\w+/g, '');
+            document.body.classList.add(`screen-${screenSize}`);
+        };
+        
+        updateLayout();
     }
 
     /**
-     * Toggle online users widget
+     * Bind window resize events for responsive behavior
      */
-    toggleOnlineUsersWidget(e) {
-        if (e && e.stopPropagation) e.stopPropagation();
-        
-        // Use event delegation to get the widget from the click event's path
-        const widget = e.target.closest('.online-users-widget');
-        if (!widget) return;
-        
-        // Find elements once
-        const content = widget.querySelector('.widget-content');
-        const toggle = widget.querySelector('.widget-toggle');
-        const isClosed = widget.classList.contains('closed');
-
-        // Toggle all classes in one batch
-        [
-            [widget, 'closed'],
-            [content, 'collapsed'],
-            [toggle, 'collapsed']
-        ].forEach(([element, className]) => {
-            if (element) element.classList.toggle(className, !isClosed);
+    bindResizeEvents() {
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                this.handleResponsiveLayout();
+            }, 250);
         });
+        
+        // Handle orientation changes on mobile devices
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                this.handleResponsiveLayout();
+            }, 500); // Give time for orientation change to complete
+        });
+    }
+
+    /**
+     * Render active users in the sidebar
+     */
+    renderActiveUsers(users) {
+        const container = document.getElementById('active-users-list');
+        const countElement = document.getElementById('online-count');
+        
+        if (!container) return;
+
+        // Update online count
+        if (countElement) {
+            countElement.textContent = users.length;
+        }
+
+        const isMobile = window.innerWidth <= 768;
+        
+        // Get current user list to compare for animations
+        const currentUsers = Array.from(container.children).map(el => el.dataset.username);
+        const newUsers = users.map(user => user.Nickname);
+        
+        // Find users who joined and left
+        const joinedUsers = newUsers.filter(user => !currentUsers.includes(user));
+        const leftUsers = currentUsers.filter(user => !newUsers.includes(user));
+        
+        // Remove leaving users with animation
+        leftUsers.forEach(username => {
+            const userElement = container.querySelector(`[data-username="${username}"]`);
+            if (userElement) {
+                userElement.classList.add('leaving');
+                setTimeout(() => {
+                    if (userElement.parentNode) {
+                        userElement.remove();
+                    }
+                }, 400);
+            }
+        });
+        
+        // Clear container for full rebuild (avoiding animation conflicts)
+        setTimeout(() => {
+            container.innerHTML = '';
+            
+            users.forEach(user => {
+                const userDiv = document.createElement('div');
+                userDiv.className = 'active-user';
+                userDiv.setAttribute('role', 'button');
+                userDiv.setAttribute('tabindex', '0');
+                userDiv.setAttribute('aria-label', `Start chat with ${user.Nickname}`);
+                
+                // Truncate long usernames on mobile
+                let displayName = this.escapeHtml(user.Nickname);
+                if (isMobile && displayName.length > 12) {
+                    displayName = displayName.substring(0, 10) + '...';
+                }
+                
+                userDiv.textContent = displayName;
+                userDiv.dataset.username = user.Nickname;
+                userDiv.title = this.escapeHtml(user.Nickname);
+                
+                // Add joining animation for new users
+                if (joinedUsers.includes(user.Nickname)) {
+                    userDiv.classList.add('joining');
+                    // Remove animation class after animation completes
+                    setTimeout(() => {
+                        userDiv.classList.remove('joining');
+                    }, 600);
+                }
+                
+                // Click and keyboard event handlers
+                const handleUserInteraction = (e) => {
+                    e.stopPropagation();
+                    this.app.chat.openChatWithUser(user.Nickname);
+                };
+                
+                userDiv.addEventListener('click', handleUserInteraction);
+                userDiv.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleUserInteraction(e);
+                    }
+                });
+                
+                container.appendChild(userDiv);
+            });
+            
+            // Add scroll indicator on mobile if there are many users
+            if (isMobile && users.length > 8) {
+                const scrollIndicator = document.createElement('div');
+                scrollIndicator.className = 'scroll-indicator';
+                scrollIndicator.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+                container.appendChild(scrollIndicator);
+            }
+        }, leftUsers.length > 0 ? 450 : 0);
     }
 
     /**
@@ -98,12 +206,19 @@ class UIManager {
             document.getElementById(`${viewName}-btn`).classList.add('active');
         }
 
-        // Hide/show sidebar based on view
-        const sidebar = document.querySelector('.sidebar');
+        // Hide/show sidebars based on view
+        const leftSidebar = document.querySelector('.sidebar');
+        const rightSidebar = document.querySelector('.online-users-sidebar');
+        
         if (viewName === 'post' || viewName === 'create-post' || viewName === 'my-posts') {
-            sidebar.style.display = 'none';
+            leftSidebar.style.display = 'none';
         } else {
-            sidebar.style.display = 'block';
+            leftSidebar.style.display = 'block';
+        }
+        
+        // Always show the online users sidebar
+        if (rightSidebar) {
+            rightSidebar.style.display = 'block';
         }
 
         this.currentView = viewName;
@@ -151,25 +266,6 @@ class UIManager {
     }
 
     /**
-     * Render active users in the widget
-     */
-    renderActiveUsers(users) {
-        const container = document.getElementById('active-users-list');
-        container.innerHTML = '';
-        users.forEach(user => {
-            const userDiv = document.createElement('div');
-            userDiv.className = 'active-user';
-            userDiv.textContent = this.escapeHtml(user.Nickname);
-            userDiv.dataset.username = user.Nickname;
-            userDiv.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent widget toggle when clicking user
-                this.app.chat.openChatWithUser(user.Nickname);
-            });
-            container.appendChild(userDiv);
-        });
-    }
-
-    /**
      * Escape HTML characters to prevent XSS
      */
     escapeHtml(text) {
@@ -189,6 +285,25 @@ class UIManager {
             "'": '&#039;'
         };
         return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    /**
+     * Check if device supports touch
+     */
+    isTouchDevice() {
+        return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    }
+
+    /**
+     * Get current screen size category
+     */
+    getScreenSize() {
+        const width = window.innerWidth;
+        if (width <= 480) return 'mobile-small';
+        if (width <= 768) return 'mobile';
+        if (width <= 992) return 'tablet';
+        if (width <= 1200) return 'desktop-small';
+        return 'desktop';
     }
 
     /**
@@ -220,6 +335,12 @@ class UIManager {
         const activeUsersContainer = document.getElementById('active-users-list');
         if (activeUsersContainer) {
             activeUsersContainer.innerHTML = '';
+        }
+        
+        // Clear online count
+        const countElement = document.getElementById('online-count');
+        if (countElement) {
+            countElement.textContent = '0';
         }
         
         // Hide loading if shown

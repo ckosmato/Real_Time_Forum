@@ -65,7 +65,26 @@ class ChatManager {
         this.websocket.onmessage = (event) => {
             try {
                 const message = JSON.parse(event.data);
-                this.displayChatMessage(message);
+                
+                // Handle different message types
+                switch (message.type) {
+                    case 'chat_message':
+                        this.displayChatMessage(message);
+                        break;
+                    case 'user_joined':
+                        this.handleUserJoined(message);
+                        break;
+                    case 'user_left':
+                        this.handleUserLeft(message);
+                        break;
+                    case 'initial_online_users':
+                        this.handleInitialOnlineUsers(message);
+                        break;
+                    default:
+                        // Default to chat message for backward compatibility
+                        this.displayChatMessage(message);
+                        break;
+                }
             } catch (error) {
                 console.error('Error parsing WebSocket message:', error);
             }
@@ -331,5 +350,68 @@ class ChatManager {
         this.currentChatUser = null;
         this.closeChatWidget();
         this.disconnectWebSocket();
+    }
+
+    /**
+     * Handle user joined event
+     */
+    handleUserJoined(message) {
+        console.log(`User ${message.content} joined`);
+        
+        // Update online users list
+        if (message.online_users) {
+            this.updateOnlineUsersList(message.online_users);
+        }
+        
+        // Show notification if it's not the current user
+        const currentUser = this.app.auth.getCurrentUser();
+        if (message.content !== currentUser?.nickname) {
+            this.app.ui.showToast(`🟢 ${message.content} joined the forum`, 'success', 4000);
+        }
+    }
+
+    /**
+     * Handle user left event
+     */
+    handleUserLeft(message) {
+        console.log(`User ${message.content} left`);
+        
+        // Update online users list
+        if (message.online_users) {
+            this.updateOnlineUsersList(message.online_users);
+        }
+        
+        // Show notification
+        this.app.ui.showToast(`🔴 ${message.content} left the forum`, 'info', 4000);
+        
+        // Close chat if it was open with this user
+        if (this.currentChatUser === message.content) {
+            this.app.ui.showToast(`Chat with ${message.content} closed (user disconnected)`, 'warning', 3000);
+            this.closeChatWidget();
+        }
+    }
+
+    /**
+     * Handle initial online users list
+     */
+    handleInitialOnlineUsers(message) {
+        console.log('Received initial online users:', message.online_users);
+        
+        if (message.online_users) {
+            this.updateOnlineUsersList(message.online_users);
+        }
+    }
+
+    /**
+     * Update the online users list in the UI
+     */
+    updateOnlineUsersList(usernames) {
+        // Convert usernames array to user objects format expected by renderActiveUsers
+        const users = usernames.map(username => ({
+            Nickname: username
+        }));
+        
+        // Update the UI
+        this.app.ui.renderActiveUsers(users);
     }
 }
