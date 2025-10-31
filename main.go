@@ -18,13 +18,13 @@ import (
 )
 
 type Dependencies struct {
-	AuthService    services.AuthService
-	UserService    services.UserService
-	SessionService services.SessionService
+	AuthService       services.AuthService
+	UserService       services.UserService
+	SessionService    services.SessionService
 	PostService       services.PostService
 	CategoriesService services.CategoriesService
 	CommentService    services.CommentsService
-	ChatService      services.ChatService
+	ChatService       services.ChatService
 }
 
 type Handlers struct {
@@ -51,8 +51,8 @@ func main() {
 	// Setup dependencies and handlers
 	deps := SetupDependencies(db)
 
-	go deps.ChatService.Hub.Run()  // start the hub
-	
+	go deps.ChatService.Hub.Run() // start the hub
+
 	handlerInstances := SetupHandlers(deps)
 	middlewareInstances := SetupMiddleware(deps)
 
@@ -70,7 +70,7 @@ func main() {
 		panic(err)
 	}
 }
-	
+
 func Configure(mux *http.ServeMux, h *Handlers, deps *Dependencies, m *Middlewares) {
 
 	// API routes
@@ -88,21 +88,26 @@ func Configure(mux *http.ServeMux, h *Handlers, deps *Dependencies, m *Middlewar
 	mux.Handle("/validate-session", m.LoggingMiddleware.Log(http.HandlerFunc(h.AuthHandler.CheckSession)))
 
 	// WebSocket routes
-mux.Handle("/chathistory",
-    m.AuthMiddleware.Authorize(
-        m.LoggingMiddleware.Log(http.HandlerFunc(h.WebSocketHandler.ChatHistory)),
-    ),
-)
+	mux.Handle("/chathistory",
+		m.AuthMiddleware.Authorize(
+			m.LoggingMiddleware.Log(http.HandlerFunc(h.WebSocketHandler.ChatHistory)),
+		),
+	)
 	mux.Handle("/ws", m.AuthMiddleware.Authorize(m.LoggingMiddleware.Log(http.HandlerFunc(h.WebSocketHandler.WebSocket))))
-	
-	
-	
+
 	// Static files
 	mux.HandleFunc("/style.css", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "style.css")
 	})
 	mux.HandleFunc("/app.js", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "app.js")
+	})
+
+	// JavaScript modules directory
+	mux.HandleFunc("/js/", func(w http.ResponseWriter, r *http.Request) {
+		// Set proper MIME type for JavaScript files
+		w.Header().Set("Content-Type", "application/javascript")
+		http.ServeFile(w, r, r.URL.Path[1:]) // Remove leading slash
 	})
 
 	// Root handler
@@ -126,8 +131,7 @@ mux.Handle("/chathistory",
 func SetupDependencies(db *sql.DB) *Dependencies {
 
 	// Models
-	hub := models.NewHub() 
-
+	hub := models.NewHub()
 
 	// Repositories
 	userRepo := repositories.NewUserRepository(db)
@@ -153,14 +157,14 @@ func SetupDependencies(db *sql.DB) *Dependencies {
 		PostService:       *postService,
 		CategoriesService: *categoriesService,
 		CommentService:    *commentService,
-		ChatService:      *chatService,
+		ChatService:       *chatService,
 	}
 }
 
 func SetupHandlers(deps *Dependencies) *Handlers {
 	// Handlers
 	return &Handlers{
-		AuthHandler:      handlers.NewAuthHandler(deps.AuthService,deps.SessionService),
+		AuthHandler:      handlers.NewAuthHandler(deps.AuthService, deps.SessionService),
 		CommentsHandler:  handlers.NewCommentsHandler(deps.PostService, deps.CommentService, deps.CategoriesService, deps.UserService),
 		DashboardHandler: handlers.NewDashboardHandler(deps.PostService, deps.CategoriesService, deps.UserService),
 		PostHandler:      handlers.NewPostHandler(deps.PostService, deps.CategoriesService, deps.CommentService, deps.UserService),
