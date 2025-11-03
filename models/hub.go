@@ -1,10 +1,15 @@
 package models
 
 import (
+	"context"
 	"encoding/json"
 	"log"
+	"sort"
 	"time"
 )
+
+// UserSorter is a function type for sorting users based on chat history
+type UserSorter func(ctx context.Context, currentUser string, users []string) ([]string, error)
 
 func NewHub() *Hub {
 	return &Hub{
@@ -13,7 +18,13 @@ func NewHub() *Hub {
 		Unregister:  make(chan *Client),
 		Broadcast:   make(chan []byte),
 		UserClients: make(map[string]*Client),
+		UserSorter:  nil, // Will be set later by the service
 	}
+}
+
+// SetUserSorter sets the sorting function for online users
+func (h *Hub) SetUserSorter(sorter UserSorter) {
+	h.UserSorter = sorter
 }
 
 func (h *Hub) Run() {
@@ -109,6 +120,9 @@ func (h *Hub) GetOnlineUsers() []string {
 	for username := range h.UserClients {
 		users = append(users, username)
 	}
+
+	// Sort alphabetically as default
+	sort.Strings(users)
 	return users
 }
 
@@ -120,5 +134,22 @@ func (h *Hub) GetOnlineUsersExcluding(excludeUsername string) []string {
 			users = append(users, username)
 		}
 	}
+
+	// Use custom sorter if available, otherwise sort alphabetically
+	if h.UserSorter != nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		sortedUsers, err := h.UserSorter(ctx, excludeUsername, users)
+		if err != nil {
+			log.Printf("Error sorting users: %v, falling back to alphabetical", err)
+			sort.Strings(users)
+			return users
+		}
+		return sortedUsers
+	}
+
+	// Default alphabetical sorting
+	sort.Strings(users)
 	return users
 }

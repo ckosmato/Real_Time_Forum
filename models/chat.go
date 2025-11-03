@@ -29,6 +29,7 @@ type Hub struct {
 	Unregister  chan *Client
 	Broadcast   chan []byte
 	UserClients map[string]*Client
+	UserSorter  UserSorter // Function to sort users based on chat history
 }
 
 var Upgrader = websocket.Upgrader{

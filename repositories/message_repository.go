@@ -54,6 +54,39 @@ func (r *MessageRepository) GetMessages(ctx context.Context, user1, user2 string
 	return messages, rows.Err()
 }
 
+// GetLastMessageTimestamps gets the last message timestamp for each user the current user has chatted with
+func (r *MessageRepository) GetLastMessageTimestamps(ctx context.Context, currentUser string) (map[string]string, error) {
+	query := `
+		SELECT 
+			CASE 
+				WHEN from_user = ? THEN to_user 
+				ELSE from_user 
+			END as other_user,
+			MAX(created_at) as last_message_time
+		FROM messages 
+		WHERE from_user = ? OR to_user = ?
+		GROUP BY other_user
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, currentUser, currentUser, currentUser)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	timestamps := make(map[string]string)
+	for rows.Next() {
+		var otherUser, lastMessageTime string
+		err := rows.Scan(&otherUser, &lastMessageTime)
+		if err != nil {
+			return nil, err
+		}
+		timestamps[otherUser] = lastMessageTime
+	}
+
+	return timestamps, rows.Err()
+}
+
 // // GetRecentConversations gets the most recent conversations for a user
 // func (r *MessageRepository) GetRecentConversations(ctx context.Context, userID string, limit int) ([]models.Message, error) {
 // 	query := `

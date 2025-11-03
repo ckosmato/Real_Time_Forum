@@ -80,6 +80,9 @@ class ChatManager {
                     case 'initial_online_users':
                         this.handleInitialOnlineUsers(message);
                         break;
+                    case 'online_users_update':
+                        this.handleOnlineUsersUpdate(message);
+                        break;
                     default:
                         // Default to chat message for backward compatibility
                         this.displayChatMessage(message);
@@ -396,6 +399,17 @@ class ChatManager {
      */
     handleInitialOnlineUsers(message) {
         console.log('Received initial online users:', message.online_users);
+        
+        if (message.online_users) {
+            this.updateOnlineUsersList(message.online_users);
+        }
+    }
+
+    /**
+     * Handle online users update (triggered after new messages)
+     */
+    handleOnlineUsersUpdate(message) {
+        console.log('Received online users update:', message.online_users);
         
         if (message.online_users) {
             this.updateOnlineUsersList(message.online_users);
