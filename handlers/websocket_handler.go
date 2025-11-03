@@ -8,6 +8,7 @@ import (
 	"real-time-forum/models"
 	"real-time-forum/services"
 	"real-time-forum/utils"
+	"strconv"
 	"time"
 )
 
@@ -108,16 +109,50 @@ func (h *WebSocketHandler) ChatHistory(w http.ResponseWriter, r *http.Request) {
 	fmt.Print("ChatHistory handler called\n")
 	query := r.URL.Query()
 	user2 := query.Get("user2")
+	limitStr := query.Get("limit")
+	offsetStr := query.Get("offset")
+
 	user := utils.GetUserFromContext(r.Context())
-	//fmt.Println("Fetching chat history between:", user.Nickname, "and", user2)
-	history, err := h.chatService.GetChatHistory(r.Context(), user.Nickname, user2)
+
+	// Default values for pagination
+	limit := 10
+	offset := 0
+
+	// Parse pagination parameters
+	if limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= 50 {
+			limit = parsedLimit
+		}
+	}
+
+	if offsetStr != "" {
+		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
+
+	var history []models.Message
+	var err error
+
+	// Use pagination if offset is provided, otherwise use the old method for initial load
+	if offset > 0 {
+		history, err = h.chatService.GetChatHistoryWithPagination(r.Context(), user.Nickname, user2, limit, offset)
+	} else {
+		// For initial load, get the most recent messages
+		history, err = h.chatService.GetChatHistoryWithPagination(r.Context(), user.Nickname, user2, limit, 0)
+	}
+
 	if err != nil {
 		http.Error(w, "Failed to get chat history", http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"history": history,
+		"limit":   limit,
+		"offset":  offset,
+		"hasMore": len(history) == limit, // If we got exactly 'limit' messages, there might be more
 	})
 }

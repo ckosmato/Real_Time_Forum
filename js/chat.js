@@ -8,6 +8,13 @@ class ChatManager {
         this.websocket = null;
         this.isWebSocketConnected = false;
         this.currentChatUser = null;
+        
+        // Pagination properties
+        this.currentOffset = 0;
+        this.messagesPerPage = 10;
+        this.isLoadingHistory = false;
+        this.hasMoreMessages = true;
+        this.scrollThrottleTimer = null;
     }
 
     /**
@@ -227,6 +234,11 @@ class ChatManager {
             // Set the current chat user
             this.currentChatUser = username;
             
+            // Reset pagination state
+            this.currentOffset = 0;
+            this.hasMoreMessages = true;
+            this.isLoadingHistory = false;
+            
             // Set the chat user in UI
             chatUsername.innerHTML = `<i class="fa-solid fa-comment"></i> Chat with ${this.app.ui.escapeHtml(username)}`;
             
@@ -239,7 +251,11 @@ class ChatManager {
                 chatInput.focus();
             }
             
-            this.loadChatHistory(username);
+            // Add scroll event listener for pagination
+            this.setupScrollPagination(chatMessages);
+            
+            // Load initial batch of messages (20 for initial view)
+            this.loadInitialChatHistory(username);
         }
     }
 
@@ -251,7 +267,57 @@ class ChatManager {
         if (chatWidget) {
             chatWidget.style.display = 'none';
             this.currentChatUser = null; // Clear current chat user
+            
+            // Reset pagination state
+            this.currentOffset = 0;
+            this.hasMoreMessages = true;
+            this.isLoadingHistory = false;
+            
+            // Remove scroll event listener
+            const chatMessages = document.getElementById('chat-messages');
+            if (chatMessages) {
+                chatMessages.removeEventListener('scroll', this.throttledScrollHandler);
+            }
         }
+    }
+
+    /**
+     * Setup scroll-based pagination for chat messages
+     */
+    setupScrollPagination(chatMessages) {
+        // Remove any existing scroll listener
+        if (this.throttledScrollHandler) {
+            chatMessages.removeEventListener('scroll', this.throttledScrollHandler);
+        }
+        
+        // Create throttled scroll handler
+        this.throttledScrollHandler = this.throttle((e) => {
+            const element = e.target;
+            
+            // Check if user scrolled to the top (with some threshold)
+            if (element.scrollTop <= 50 && this.hasMoreMessages && !this.isLoadingHistory) {
+                console.log('Loading more messages...');
+                this.loadMoreMessages();
+            }
+        }, 300); // Throttle to 300ms
+        
+        // Add scroll event listener
+        chatMessages.addEventListener('scroll', this.throttledScrollHandler);
+    }
+
+    /**
+     * Throttle function to prevent spam scroll events
+     */
+    throttle(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func.apply(this, args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
     }
 
     /**
@@ -285,13 +351,18 @@ class ChatManager {
     }
 
     /**
-     * Load chat history with a user
+     * Load initial chat history with a larger batch for better UX
      */
-    loadChatHistory(username) {
-        console.log("Calling loadChatHistory for", username);
+    loadInitialChatHistory(username) {
+        console.log("Loading initial chat history for", username);
         const chatMessages = document.getElementById('chat-messages');
 
-        fetch(`/chathistory?user2=${encodeURIComponent(username)}`, {
+        this.isLoadingHistory = true;
+
+        // Load only 10 messages initially (last 10 messages)
+        const initialLimit = 10;
+
+        fetch(`/chathistory?user2=${encodeURIComponent(username)}&limit=${initialLimit}&offset=0`, {
             method: 'GET',
             headers: {
                 'X-Session-ID': this.app.auth.getCookie('session_id'),
@@ -303,40 +374,274 @@ class ChatManager {
             return response.json();
         })
         .then(data => {
-            chatMessages.innerHTML = '';
-
             const currentUser = this.app.auth.getCurrentUser();
             
-            data.history.forEach(msg => {
-                const msgDiv = document.createElement('div');
-                msgDiv.classList.add('chat-message');
+            console.log(`Initial load: received ${data.history?.length || 0} messages`);
+            console.log('Has more messages:', data.hasMore);
+            
+            // Clear and populate with initial messages
+            chatMessages.innerHTML = '';
+            
+            // Check if there are more messages beyond our initial load
+            this.hasMoreMessages = data.hasMore || false;
+            
+            if (data.history && data.history.length > 0) {
+                data.history.forEach((msg, index) => {
+                    console.log(`Message ${index + 1}: "${msg.content}" at ${msg.timestamp}`);
+                    const msgDiv = document.createElement('div');
+                    msgDiv.classList.add('chat-message');
 
-                // Check if the message is from the current user or the other user
-                if (msg.from === currentUser?.nickname) {
-                    msgDiv.classList.add('sent');       // message you sent
-                } else {
-                    msgDiv.classList.add('received');   // message received
+                    // Check if the message is from the current user or the other user
+                    if (msg.from === currentUser?.nickname) {
+                        msgDiv.classList.add('sent');       // message you sent
+                    } else {
+                        msgDiv.classList.add('received');   // message received
+                    }
+
+                    // Add the content
+                    msgDiv.textContent = msg.content;
+
+                    // Add timestamp
+                    const timeDiv = document.createElement('div');
+                    timeDiv.classList.add('chat-message-time');
+                    timeDiv.textContent = new Date(msg.timestamp).toLocaleTimeString();
+                    msgDiv.appendChild(timeDiv);
+
+                    chatMessages.appendChild(msgDiv);
+                });
+                
+                // Set offset to the number of messages we loaded
+                this.currentOffset = data.history.length;
+                
+                // Scroll to bottom to show most recent messages
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            this.isLoadingHistory = false;
+        })
+        .catch(err => {
+            console.error('Error fetching initial chat history:', err);
+            chatMessages.innerHTML = '<div class="chat-message error">Failed to load chat history.</div>';
+            this.isLoadingHistory = false;
+        });
+    }
+
+    /**
+     * Load chat history with a user (for pagination)
+     */
+    /**
+     * Load chat history with a user (for pagination)
+     */
+    loadChatHistory(username) {
+        console.log("Loading more chat history for", username, "offset:", this.currentOffset);
+        const chatMessages = document.getElementById('chat-messages');
+
+        this.isLoadingHistory = true;
+
+        fetch(`/chathistory?user2=${encodeURIComponent(username)}&limit=${this.messagesPerPage}&offset=${this.currentOffset}`, {
+            method: 'GET',
+            headers: {
+                'X-Session-ID': this.app.auth.getCookie('session_id'),
+            },
+            credentials: 'include'
+        })
+        .then(response => {
+            console.log("Response status:", response.status);
+            return response.json();
+        })
+        .then(data => {
+            const currentUser = this.app.auth.getCurrentUser();
+            
+            console.log(`Pagination load: received ${data.history?.length || 0} messages at offset ${this.currentOffset}`);
+            console.log('Has more messages:', data.hasMore);
+            
+            // Check if there are more messages
+            this.hasMoreMessages = data.hasMore || false;
+            
+            if (data.history && data.history.length > 0) {
+                console.log('Loading older messages...');
+                data.history.forEach((msg, index) => {
+                    console.log(`Older message ${index + 1}: "${msg.content}" at ${msg.timestamp}`);
+                });
+                
+                // Store current scroll position before adding messages
+                const previousScrollHeight = chatMessages.scrollHeight;
+
+                // Insert older messages at the beginning while preserving chronological order.
+                // data.history is expected to be ordered oldest -> newest for the chunk.
+                // We iterate in reverse and insert each message before the first child so the
+                // final order at the top remains oldest -> newest.
+                for (let i = data.history.length - 1; i >= 0; i--) {
+                    const msg = data.history[i];
+                    const msgDiv = document.createElement('div');
+                    msgDiv.classList.add('chat-message');
+
+                    // Check if the message is from the current user or the other user
+                    if (msg.from === currentUser?.nickname) {
+                        msgDiv.classList.add('sent');       // message you sent
+                    } else {
+                        msgDiv.classList.add('received');   // message received
+                    }
+
+                    // Add the content
+                    msgDiv.textContent = msg.content;
+
+                    // Add timestamp
+                    const timeDiv = document.createElement('div');
+                    timeDiv.classList.add('chat-message-time');
+                    timeDiv.textContent = new Date(msg.timestamp).toLocaleTimeString();
+                    msgDiv.appendChild(timeDiv);
+
+                    // Insert before the current first child so that order is preserved
+                    chatMessages.insertBefore(msgDiv, chatMessages.firstChild);
                 }
-
-                // Add the content
-                msgDiv.textContent = msg.content;
-
-                // Optionally, add a timestamp
-                const timeDiv = document.createElement('div');
-                timeDiv.classList.add('chat-message-time');
-                timeDiv.textContent = new Date(msg.timestamp).toLocaleTimeString();
-                msgDiv.appendChild(timeDiv);
-
-                chatMessages.appendChild(msgDiv);
-            });
-
-            // Scroll to bottom
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+                
+                // Hide loading indicator
+                this.hideChatLoadingIndicator();
+                
+                // Maintain scroll position so user doesn't lose their place
+                const newScrollHeight = chatMessages.scrollHeight;
+                chatMessages.scrollTop = newScrollHeight - previousScrollHeight;
+                
+                // Update offset for next load
+                this.currentOffset += data.history.length;
+            } else if (this.currentOffset > 0) {
+                // No more messages to load
+                this.showNoMoreMessagesIndicator();
+            }
+            
+            this.isLoadingHistory = false;
         })
         .catch(err => {
             console.error('Error fetching chat history:', err);
-            chatMessages.innerHTML = '<div class="chat-message error">Failed to load chat history.</div>';
+            // Hide loading indicator on error
+            this.hideChatLoadingIndicator();
+            this.isLoadingHistory = false;
         });
+    }
+
+    /**
+     * Load more messages when scrolling to top
+     */
+    loadMoreMessages() {
+        if (!this.currentChatUser || this.isLoadingHistory || !this.hasMoreMessages) {
+            return;
+        }
+        
+        console.log('Loading more messages for', this.currentChatUser);
+        
+        // Show loading indicator
+        this.showChatLoadingIndicator();
+        
+        this.loadChatHistory(this.currentChatUser);
+    }
+
+    /**
+     * Show loading indicator at the top of chat messages
+     */
+    showChatLoadingIndicator() {
+        const chatMessages = document.getElementById('chat-messages');
+        if (!chatMessages) return;
+        
+        // Remove existing loading indicator if present
+        const existingLoader = chatMessages.querySelector('.chat-loading');
+        if (existingLoader) {
+            existingLoader.remove();
+        }
+        
+        // Create loading indicator
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'chat-loading';
+        loadingDiv.innerHTML = `
+            <div class="spinner"></div>
+            Loading more messages...
+        `;
+        
+        // Insert at the beginning
+        chatMessages.insertBefore(loadingDiv, chatMessages.firstChild);
+    }
+
+    /**
+     * Hide loading indicator
+     */
+    hideChatLoadingIndicator() {
+        const chatMessages = document.getElementById('chat-messages');
+        if (!chatMessages) return;
+        
+        const loadingDiv = chatMessages.querySelector('.chat-loading');
+        if (loadingDiv) {
+            loadingDiv.remove();
+        }
+    }
+
+    /**
+     * Show "no more messages" indicator
+     */
+    showNoMoreMessagesIndicator() {
+        const chatMessages = document.getElementById('chat-messages');
+        if (!chatMessages) return;
+        
+        // Remove loading indicator first
+        this.hideChatLoadingIndicator();
+        
+        // Check if indicator already exists
+        const existing = chatMessages.querySelector('.no-more-messages');
+        if (existing) return;
+        
+        // Create "no more messages" indicator
+        const noMoreDiv = document.createElement('div');
+        noMoreDiv.className = 'no-more-messages';
+        noMoreDiv.style.cssText = `
+            text-align: center;
+            padding: 10px;
+            color: #666;
+            font-size: 0.8rem;
+            opacity: 0.7;
+            border-bottom: 1px solid #3a3a47;
+            margin-bottom: 10px;
+        `;
+        noMoreDiv.textContent = '— Beginning of conversation —';
+        
+        // Insert at the beginning
+        chatMessages.insertBefore(noMoreDiv, chatMessages.firstChild);
+        
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+            if (noMoreDiv.parentNode) {
+                noMoreDiv.remove();
+            }
+        }, 3000);
+    }
+
+    /**
+     * Show "no more messages" indicator
+     */
+    showNoMoreMessagesIndicator() {
+        const chatMessages = document.getElementById('chat-messages');
+        if (!chatMessages) return;
+        
+        // Remove loading indicator first
+        this.hideChatLoadingIndicator();
+        
+        // Check if indicator already exists
+        if (chatMessages.querySelector('.no-more-messages')) return;
+        
+        // Create indicator
+        const indicator = document.createElement('div');
+        indicator.className = 'no-more-messages';
+        indicator.style.cssText = `
+            text-align: center;
+            padding: 10px;
+            color: #666;
+            font-size: 0.8rem;
+            opacity: 0.7;
+            border-bottom: 1px solid #3a3a47;
+            margin-bottom: 10px;
+        `;
+        indicator.textContent = '--- Beginning of conversation ---';
+        
+        // Insert at the beginning
+        chatMessages.insertBefore(indicator, chatMessages.firstChild);
     }
 
     /**
@@ -353,6 +658,11 @@ class ChatManager {
         this.currentChatUser = null;
         this.closeChatWidget();
         this.disconnectWebSocket();
+        
+        // Reset pagination state
+        this.currentOffset = 0;
+        this.hasMoreMessages = true;
+        this.isLoadingHistory = false;
     }
 
     /**
