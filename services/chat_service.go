@@ -76,19 +76,9 @@ func (s *ChatService) refreshOnlineUsersOrder(user1, user2 string) {
 	}
 }
 
-// Fetch chat history for a user
-func (s *ChatService) GetChatHistory(ctx context.Context, user1, user2 string) ([]models.Message, error) {
-	return s.messageRepo.GetMessages(ctx, user1, user2, 20)
-}
-
 // Fetch chat history with pagination
 func (s *ChatService) GetChatHistoryWithPagination(ctx context.Context, user1, user2 string, limit, offset int) ([]models.Message, error) {
 	return s.messageRepo.GetMessagesWithPagination(ctx, user1, user2, limit, offset)
-}
-
-// Get last message timestamps for sorting online users
-func (s *ChatService) GetLastMessageTimestamps(ctx context.Context, currentUser string) (map[string]string, error) {
-	return s.messageRepo.GetLastMessageTimestamps(ctx, currentUser)
 }
 
 // SortUsersByLastMessage sorts users by putting those with recent conversations first, then alphabetically
@@ -98,7 +88,7 @@ func (s *ChatService) SortUsersByLastMessage(ctx context.Context, currentUser st
 	}
 
 	// Get last message timestamps for the current user
-	timestamps, err := s.GetLastMessageTimestamps(ctx, currentUser)
+	timestamps, err := s.messageRepo.GetLastMessageTimestamps(ctx, currentUser)
 	if err != nil {
 		log.Printf("Error getting message timestamps for sorting: %v", err)
 		// Fallback to alphabetical sorting

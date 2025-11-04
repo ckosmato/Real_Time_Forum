@@ -145,37 +145,3 @@ func (h *DashboardHandler) UserPosts(w http.ResponseWriter, r *http.Request) {
 		"posts":      posts,
 	})
 }
-
-func (h *DashboardHandler) ActiveUsers(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		log.Printf("GetActiveUsers: invalid method %s", r.Method)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Method not allowed"})
-		return
-	}
-
-	sessionID := r.Header.Get("X-Session-ID")
-	if sessionID == "" {
-		log.Printf("GetActiveUsers: missing session ID")
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
-		return
-	}
-
-	activeUsers, err := h.userService.GetActiveUsers(r.Context(), sessionID)
-	if err != nil {
-		log.Printf("GetActiveUsers: failed to fetch active users: %v", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to fetch active users"})
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"users": activeUsers,
-	})
-}
