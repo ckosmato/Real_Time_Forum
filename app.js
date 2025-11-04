@@ -76,8 +76,45 @@ class ForumApp {
             this.posts.renderCategories();
         } finally {
             this.ui.hideLoading();
-            // Initialize chat after dashboard is loaded - this will also get online users via WebSocket
+            // Load all users immediately to show them even before WebSocket connects
+            this.loadAllUsers();
+            // Initialize chat after dashboard is loaded - this will get online users via WebSocket
             this.chat.init();
+            // Don't load all users immediately - let WebSocket connection establish first
+            // All users will be loaded when we receive the initial online users list
+        }
+    }
+
+    /**
+     * Load all users from the server
+     */
+    async loadAllUsers() {
+        console.log('loadAllUsers called');
+        const sessionId = this.auth.getCookie('session_id');
+        console.log('Session ID:', sessionId);
+
+        try {
+            console.log('Fetching all users...');
+            const response = await fetch('/dashboard/all-users', {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                    'X-Session-ID': sessionId
+                }
+            });
+            
+            const data = await response.json();
+            console.log('All users response:', data);
+            
+            if (response.ok) {
+                console.log('Calling renderAllUsers with:', data.users);
+                // Display all users in the UI
+                this.ui.renderAllUsers(data.users || []);
+            } else {
+                console.error('Failed to load all users:', data.error);
+            }
+        } catch (error) {
+            console.error('Error loading all users:', error);
         }
     }
 

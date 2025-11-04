@@ -8,6 +8,7 @@ class ChatManager {
         this.websocket = null;
         this.isWebSocketConnected = false;
         this.currentChatUser = null;
+        this.onlineUsers = []; // Store online users list
         
         // Pagination properties
         this.currentOffset = 0;
@@ -614,37 +615,6 @@ class ChatManager {
     }
 
     /**
-     * Show "no more messages" indicator
-     */
-    showNoMoreMessagesIndicator() {
-        const chatMessages = document.getElementById('chat-messages');
-        if (!chatMessages) return;
-        
-        // Remove loading indicator first
-        this.hideChatLoadingIndicator();
-        
-        // Check if indicator already exists
-        if (chatMessages.querySelector('.no-more-messages')) return;
-        
-        // Create indicator
-        const indicator = document.createElement('div');
-        indicator.className = 'no-more-messages';
-        indicator.style.cssText = `
-            text-align: center;
-            padding: 10px;
-            color: #666;
-            font-size: 0.8rem;
-            opacity: 0.7;
-            border-bottom: 1px solid #3a3a47;
-            margin-bottom: 10px;
-        `;
-        indicator.textContent = '--- Beginning of conversation ---';
-        
-        // Insert at the beginning
-        chatMessages.insertBefore(indicator, chatMessages.firstChild);
-    }
-
-    /**
      * Get current chat user
      */
     getCurrentChatUser() {
@@ -671,9 +641,10 @@ class ChatManager {
     handleUserJoined(message) {
         console.log(`User ${message.content} joined`);
         
-        // Update online users list
+        // Update stored online users and refresh all users display
         if (message.online_users) {
-            this.updateOnlineUsersList(message.online_users);
+            this.onlineUsers = message.online_users;
+            this.app.loadAllUsers();
         }
         
         // Show notification if it's not the current user
@@ -689,9 +660,10 @@ class ChatManager {
     handleUserLeft(message) {
         console.log(`User ${message.content} left`);
         
-        // Update online users list
+        // Update stored online users and refresh all users display
         if (message.online_users) {
-            this.updateOnlineUsersList(message.online_users);
+            this.onlineUsers = message.online_users;
+            this.app.loadAllUsers();
         }
         
         // Show notification
@@ -710,8 +682,11 @@ class ChatManager {
     handleInitialOnlineUsers(message) {
         console.log('Received initial online users:', message.online_users);
         
+        // Store online users and load all users for display
         if (message.online_users) {
-            this.updateOnlineUsersList(message.online_users);
+            this.onlineUsers = message.online_users;
+            console.log('Calling loadAllUsers from handleInitialOnlineUsers');
+            this.app.loadAllUsers();
         }
     }
 
@@ -721,21 +696,18 @@ class ChatManager {
     handleOnlineUsersUpdate(message) {
         console.log('Received online users update:', message.online_users);
         
+        // Store online users for UI rendering
         if (message.online_users) {
-            this.updateOnlineUsersList(message.online_users);
+            this.onlineUsers = message.online_users;
+            this.app.loadAllUsers();
         }
     }
 
     /**
-     * Update the online users list in the UI
+     * Get current online users from WebSocket
      */
-    updateOnlineUsersList(usernames) {
-        // Convert usernames array to user objects format expected by renderActiveUsers
-        const users = usernames.map(username => ({
-            Nickname: username
-        }));
-        
-        // Update the UI
-        this.app.ui.renderActiveUsers(users);
+    getOnlineUsers() {
+        // This would contain the last received online users list
+        return this.onlineUsers || [];
     }
 }

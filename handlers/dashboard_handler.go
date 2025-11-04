@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"real-time-forum/services"
@@ -57,8 +56,8 @@ func (h *DashboardHandler) Home(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"user":       user,
-		"posts":      posts,
+		"user":  user,
+		"posts": posts,
 	})
 }
 
@@ -110,7 +109,6 @@ func (h *DashboardHandler) PostsByCategory(w http.ResponseWriter, r *http.Reques
 	// Try to get user from session header, but don't fail if not found
 	user := utils.GetUserFromContext(r.Context())
 
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -143,11 +141,12 @@ func (h *DashboardHandler) UserPosts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"posts":      posts,
+		"posts": posts,
 	})
 }
 
 func (h *DashboardHandler) AllUsers(w http.ResponseWriter, r *http.Request) {
+	log.Printf("AllUsers endpoint called")
 	if r.Method != http.MethodGet {
 		log.Printf("AllUsers: invalid method %s", r.Method)
 		w.Header().Set("Content-Type", "application/json")
@@ -158,7 +157,7 @@ func (h *DashboardHandler) AllUsers(w http.ResponseWriter, r *http.Request) {
 
 	sessionID := r.Header.Get("X-Session-ID")
 	if sessionID == "" {
-		log.Printf("GetActiveUsers: missing session ID")
+		log.Printf("AllUsers: missing session ID")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]string{"error": "Unauthorized"})
@@ -173,7 +172,7 @@ func (h *DashboardHandler) AllUsers(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"error": "Failed to fetch all users"})
 		return
 	}
-	fmt.Printf("AllUsers: retrieved %d users\n", len(allUsers))
+	log.Printf("AllUsers: retrieved %d users: %v", len(allUsers), allUsers)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

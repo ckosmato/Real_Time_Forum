@@ -338,10 +338,10 @@ body {
   gap: 2px;
 }
 
-.active-user {
+/* All Users (with status indicators) */
+.all-user {
   padding: 0.5rem 1rem;
   color: #b9bbbe;
-  cursor: pointer;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
@@ -351,77 +351,68 @@ body {
   position: relative;
 }
 
-.active-user:hover {
+.all-user.online {
+  cursor: pointer;
+}
+
+.all-user.online:hover {
   background: #3a3a47;
   color: #fff;
   padding-left: 1.2rem;
 }
 
-.active-user:before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  background: #4caf50;
-  border-radius: 50%;
-  margin-right: 0.3rem;
-  flex-shrink: 0;
-  box-shadow: 0 0 6px rgba(76, 175, 80, 0.5);
-}
-
-.active-user:active {
+.all-user.online:active {
   background: #45f3ff;
   color: #111;
   transform: translateY(1px);
 }
 
-.active-user:focus {
+.all-user.online:focus {
   outline: 2px solid #45f3ff;
   outline-offset: 2px;
   background: #3a3a47;
   color: #fff;
 }
 
-.active-user:focus:not(:focus-visible) {
+.all-user.online:focus:not(:focus-visible) {
   outline: none;
 }
 
-/* Animation for new users joining */
-@keyframes userJoin {
-  0% {
-    opacity: 0;
-    transform: translateX(20px) scale(0.8);
-    background: #45f3ff;
-  }
-  50% {
-    background: #45f3ff;
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-    background: transparent;
-  }
+.all-user.offline {
+  opacity: 0.6;
+  cursor: default;
 }
 
-/* Animation for users leaving */
-@keyframes userLeave {
-  0% {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-    background: #ff2770;
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(-20px) scale(0.8);
-    background: #ff2770;
-  }
+.user-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
 }
 
-.active-user.joining {
-  animation: userJoin 0.6s ease-out;
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
 }
 
-.active-user.leaving {
-  animation: userLeave 0.4s ease-in;
+.status-dot.online {
+  background: #4caf50;
+  box-shadow: 0 0 6px rgba(76, 175, 80, 0.5);
+}
+
+.status-dot.offline {
+  background: #757575;
+  box-shadow: none;
+}
+
+.username {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Custom scrollbar for online users */
@@ -463,21 +454,6 @@ body {
   transition: all 0.3s ease;
 }
 
-.online-users-sidebar.tablet-layout .active-user {
-  font-size: 0.85rem;
-}
-
-/* Touch device optimizations */
-.online-users-sidebar.touch-device .active-user {
-  min-height: 44px; /* Minimum touch target size */
-  display: flex;
-  align-items: center;
-}
-
-.online-users-sidebar.touch-device .active-user:hover {
-  background: #3a3a47; /* Reduce hover effects on touch */
-}
-
 /* Hide online users sidebar when chat is open on small screens */
 @media (max-width: 768px) {
   .chat-widget.active ~ .online-users-sidebar {
@@ -505,11 +481,6 @@ body {
   50% { opacity: 0.5; }
 }
 
-#active-users-list .active-user:hover {
-  background: #333;
-  transform: translateX(5px);
-}
-
 .message-indicator {
   background: #ff2770;
   color: white;
@@ -534,16 +505,6 @@ body {
     opacity: 0.7; 
     transform: scale(1.1);
   }
-}
-
-#active-users-list .active-user::before {
-  content: "";
-  width: 8px;
-  height: 8px;
-  background: #4caf50;
-  border-radius: 50%;
-  display: inline-block;
-  animation: pulse 2s infinite;
 }
 
 /* Custom scrollbar for widget */
@@ -1131,11 +1092,6 @@ body {
   .online-users-header h3 {
     font-size: 0.8rem;
   }
-  
-  .active-user {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.85rem;
-  }
 }
 
 @media (max-width: 768px) {
@@ -1172,20 +1128,6 @@ body {
     flex-wrap: wrap;
     gap: 0.3rem;
     padding: 0 0.5rem;
-  }
-  
-  .active-user {
-    padding: 0.3rem 0.6rem;
-    border-radius: 15px;
-    font-size: 0.8rem;
-    background: #3a3a47;
-    flex-shrink: 0;
-  }
-  
-  .active-user:hover {
-    padding-left: 0.6rem;
-    background: #45f3ff;
-    color: #111;
   }
   
   .nav-content {
@@ -1245,16 +1187,6 @@ body {
     padding: 0.3rem 0;
   }
   
-  .active-user {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-  }
-  
-  .active-user:before {
-    width: 6px;
-    height: 6px;
-  }
-  
   .nav-content h1 {
     font-size: 1.2rem;
   }
@@ -1289,16 +1221,6 @@ body {
   .active-users-list {
     flex-direction: column;
     gap: 2px;
-  }
-  
-  .active-user {
-    border-radius: 0;
-    background: transparent;
-  }
-  
-  .active-user:hover {
-    background: #3a3a47;
-    padding-left: 1.2rem;
   }
   
   .main-content {

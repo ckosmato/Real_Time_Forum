@@ -91,73 +91,80 @@ class UIManager {
     }
 
     /**
-     * Render active users in the sidebar
+     * Render all users with their online status in the sidebar
      */
-    renderActiveUsers(users) {
+    renderAllUsers(users) {
         const container = document.getElementById('active-users-list');
         const countElement = document.getElementById('online-count');
         
         if (!container) return;
 
+        // Get online users from the websocket hub
+        const onlineUsers = this.app.chat.getOnlineUsers ? this.app.chat.getOnlineUsers() : [];
+        
         // Update online count
         if (countElement) {
-            countElement.textContent = users.length;
+            countElement.textContent = onlineUsers.length;
         }
 
         const isMobile = window.innerWidth <= 768;
         
-        // Get current user list to compare for animations
-        const currentUsers = Array.from(container.children).map(el => el.dataset.username);
-        const newUsers = users.map(user => user.Nickname);
+        // Clear container
+        container.innerHTML = '';
         
-        // Find users who joined and left
-        const joinedUsers = newUsers.filter(user => !currentUsers.includes(user));
-        const leftUsers = currentUsers.filter(user => !newUsers.includes(user));
-        
-        // Remove leaving users with animation
-        leftUsers.forEach(username => {
-            const userElement = container.querySelector(`[data-username="${username}"]`);
-            if (userElement) {
-                userElement.classList.add('leaving');
-                setTimeout(() => {
-                    if (userElement.parentNode) {
-                        userElement.remove();
-                    }
-                }, 400);
-            }
+        // Sort users: online users first, then offline users, both alphabetically
+        const sortedUsers = [...users].sort((a, b) => {
+            const aIsOnline = onlineUsers.includes(a.Nickname);
+            const bIsOnline = onlineUsers.includes(b.Nickname);
+            
+            // First sort by online status (online first)
+            if (aIsOnline && !bIsOnline) return -1;
+            if (!aIsOnline && bIsOnline) return 1;
+            
+            // Then sort alphabetically by nickname
+            return a.Nickname.localeCompare(b.Nickname);
         });
         
-        // Clear container for full rebuild (avoiding animation conflicts)
-        setTimeout(() => {
-            container.innerHTML = '';
+        sortedUsers.forEach(user => {
+            const isOnline = onlineUsers.includes(user.Nickname);
             
-            users.forEach(user => {
-                const userDiv = document.createElement('div');
-                userDiv.className = 'active-user';
-                userDiv.setAttribute('role', 'button');
-                userDiv.setAttribute('tabindex', '0');
-                userDiv.setAttribute('aria-label', `Start chat with ${user.Nickname}`);
-                
-                // Truncate long usernames on mobile
-                let displayName = this.escapeHtml(user.Nickname);
-                if (isMobile && displayName.length > 12) {
-                    displayName = displayName.substring(0, 10) + '...';
-                }
-                
-                userDiv.textContent = displayName;
-                userDiv.dataset.username = user.Nickname;
-                userDiv.title = this.escapeHtml(user.Nickname);
-                
-                // Add joining animation for new users
-                if (joinedUsers.includes(user.Nickname)) {
-                    userDiv.classList.add('joining');
-                    // Remove animation class after animation completes
-                    setTimeout(() => {
-                        userDiv.classList.remove('joining');
-                    }, 600);
-                }
-                
-                // Click and keyboard event handlers
+            const userDiv = document.createElement('div');
+            userDiv.className = `all-user ${isOnline ? 'online' : 'offline'}`;
+            userDiv.setAttribute('role', 'button');
+            userDiv.setAttribute('tabindex', '0');
+            userDiv.setAttribute('aria-label', `${isOnline ? 'Online' : 'Offline'} - ${user.Nickname}`);
+            
+            // Create user content with online indicator
+            const userContent = document.createElement('div');
+            userContent.className = 'user-content';
+            
+            // Online status dot
+            const statusDot = document.createElement('div');
+            statusDot.className = `status-dot ${isOnline ? 'online' : 'offline'}`;
+            statusDot.setAttribute('aria-hidden', 'true');
+            
+            // Username
+            const username = document.createElement('span');
+            username.className = 'username';
+            
+            // Truncate long usernames on mobile
+            let displayName = this.escapeHtml(user.Nickname);
+            if (isMobile && displayName.length > 10) {
+                displayName = displayName.substring(0, 8) + '...';
+            }
+            
+            username.textContent = displayName;
+            
+            // Assemble the user element
+            userContent.appendChild(statusDot);
+            userContent.appendChild(username);
+            userDiv.appendChild(userContent);
+            
+            userDiv.dataset.username = user.Nickname;
+            userDiv.title = `${this.escapeHtml(user.Nickname)} (${isOnline ? 'Online' : 'Offline'})`;
+            
+            // Click and keyboard event handlers - only for online users
+            if (isOnline) {
                 const handleUserInteraction = (e) => {
                     e.stopPropagation();
                     this.app.chat.openChatWithUser(user.Nickname);
@@ -171,17 +178,24 @@ class UIManager {
                     }
                 });
                 
-                container.appendChild(userDiv);
-            });
-            
-            // Add scroll indicator on mobile if there are many users
-            if (isMobile && users.length > 8) {
-                const scrollIndicator = document.createElement('div');
-                scrollIndicator.className = 'scroll-indicator';
-                scrollIndicator.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
-                container.appendChild(scrollIndicator);
+                // Add hover effect for clickable users
+                userDiv.style.cursor = 'pointer';
+            } else {
+                // Disable interaction for offline users
+                userDiv.style.cursor = 'default';
+                userDiv.style.opacity = '0.6';
             }
-        }, leftUsers.length > 0 ? 450 : 0);
+            
+            container.appendChild(userDiv);
+        });
+        
+        // Add scroll indicator on mobile if there are many users
+        if (isMobile && users.length > 8) {
+            const scrollIndicator = document.createElement('div');
+            scrollIndicator.className = 'scroll-indicator';
+            scrollIndicator.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+            container.appendChild(scrollIndicator);
+        }
     }
 
     /**

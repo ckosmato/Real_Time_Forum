@@ -36,10 +36,14 @@ func (h *WebSocketHandler) WebSocket(w http.ResponseWriter, r *http.Request) {
 		Send:     make(chan []byte, 256),
 	}
 
-	// Send initial online users list to the newly connected client
-	h.sendInitialOnlineUsers(client)
-
 	h.chatService.Hub.Register <- client
+
+	// Send initial online users list after client is registered
+	// Small delay to ensure registration is processed
+	go func() {
+		time.Sleep(100 * time.Millisecond)
+		h.sendInitialOnlineUsers(client)
+	}()
 
 	// Start read/write pumps
 	go h.readPump(client)
