@@ -79,6 +79,7 @@ func Configure(mux *http.ServeMux, h *Handlers, deps *Dependencies, m *Middlewar
 	mux.Handle("/logout", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.AuthHandler.LogOut))))
 	mux.Handle("/dashboard", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.DashboardHandler.Home))))
 	mux.Handle("/dashboard/my-posts", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.DashboardHandler.UserPosts))))
+	mux.Handle("/dashboard/all-users", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.DashboardHandler.AllUsers))))
 	mux.Handle("/createpost", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.PostHandler.CreatePost))))
 	mux.Handle("/post", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.PostHandler.ViewPost))))
 	mux.Handle("/post/createcomment", m.LoggingMiddleware.Log(m.AuthMiddleware.Authorize(http.HandlerFunc(h.CommentsHandler.CreateComment))))

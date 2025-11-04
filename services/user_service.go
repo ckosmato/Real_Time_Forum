@@ -30,10 +30,10 @@ func (s *UserService) GetUserBySessionID(ctx context.Context, sessionID string) 
 	return user, nil
 }
 
-func (s *UserService) GetActiveUsers(ctx context.Context, sessionID string) ([]models.User, error) {
-	users, err := s.repo.GetActiveUsers(ctx, sessionID)
+func (s *UserService) GetAllUsers(ctx context.Context) ([]models.User, error) {
+	users, err := s.repo.GetAllUsers(ctx)
 	if err != nil {
-		log.Printf("GetActiveUsers: internal server error: %v", err)
+		log.Printf("AllUsers: internal server error: %v", err)
 		return nil, errors.New("internal server error")
 	}
 	return users, nil
